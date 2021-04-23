@@ -145,20 +145,82 @@ def get_fhol(model,sim):
     return f_hol
 
 
+# To get the position of a point (vec- known wrt say a "frame")
+# wrt the "parent frame" to the "frame"
+
+def get_pos(eul,pos,vec):
+
+    # Part 1
+    Rot=R.from_euler('xyz',eul,degrees=True)            # Rotation by euler - XYZ order
+    Trans=pos                                           # Translation by pos
+    Mat1=np.block([  [Rot,pos],                         # Homogenous Transformation matrix 
+                    [0,0,0,1]])
+
+    pos_tr=Mat1@np.block([  [vec],
+                            [1]])
+
+    return pos_tr
+    
+
+    
+# Homogenous transformation vector     
+
 # Calculate the jacobian asociate to 
 # 4 corner points at each foot
 # We get 24 jacobians i.e, one each for x,y,z corrdinates at each point
 def get_JfootT(model,sim):
     
-    l=0.24
+    # Dimension of foot
+    l=0.24                                  
     w=0.08
 
     # End point coordinates wrt foot frame - Common for both feet
 
-    l1=np.array([l/2,-w/2,0])                 #      l2***--l1***
-    l2=np.array([l/2,w/2/0])                  #      |      |
-    l3=np.array([-l/2,w/2,0])                 #      |      |
-    l4=np.array([-l/2,-w/2,0])                #      l3***--l4**    
+    l1=np.array([l/2,-w/2,0])                 #      ***l2***--l1***
+    l2=np.array([l/2,w/2/0])                  #         |      |
+    l3=np.array([-l/2,w/2,0])                 #         |      |
+    l4=np.array([-l/2,-w/2,0])                #      ***l3***--l4**    
+
+    ft_ends=[l1,l2,l3,l4]
+
+    # Get position of the above points wrt toe roll
+
+    # Left foot
+    posl=np.array([0, -0.05456, -0.0315])
+    eull=np.array([-60, 0, -90])
+
+    # Right foot
+    posr=np.array([0, -0.05456, -0.0315])
+    eulr=np.array([-60, 0, -90])
+
+    ft_end_ltr=[]
+    ft_end_rtr=[]
+
+    for elem in ft_ends:
+        ft_end_ltr.append(get_pos(eull,posl,elem))
+
+    for elem in ft_ends:
+        ft_end_rtr.append(get_pos(eull,posl,elem))        
+
+    ft_jac_l=[] # Left foot Jacobian
+    ft_jac_r=[] # Right foot Jacobian
+    i_ltr=10    # id-ltr
+    i_rtr=20    # id-rtr
+    temp=np.array((3*model.nv))
+    jacr=np.empty((1))
 
     # Get the jacobians
+    for elem in ft_end_ltr:
+        mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_ltr) ###  ###Check mode of input for elem
+        ft_jac_l.append(temp)
+    
+    for elem in ft_end_rtr:
+        mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_rtr) ###  ###Check mode of input for elem
+        ft_jac_r.append(temp)
+
+    
+    return ft_end_ltr,ft_jac_r
+    
+
+
     
