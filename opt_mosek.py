@@ -8,7 +8,8 @@ from centroidal_dynamics import *
 from time import process_time
 
 def get_torques(model,sim):
-    torque=np.empty((20,1))
+    torque=np.empty((20,1))     # Store torques as output
+
     with mosek.Env() as env:
         with env.Task(0,0) as task:
 

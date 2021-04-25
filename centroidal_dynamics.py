@@ -142,12 +142,13 @@ def get_B():
     # Legs
     j=0                         # Actuator number
     for i in row_addr:
-        B[6+row_addr][j]=1      # Left Leg  6 => Base
-        B[23+row_addr][j+6]=1   # Right Leg 23=> Base + Left Leg 
+        B[6+i][j]=1             # Left Leg  6 => Base
+        B[23+i][j+6]=1          # Right Leg 23=> Base + Left Leg 
         j=j+1
 
     j=12                        # Legs make up 12 actuator
 
+    # Arms
     for i in range(0,8):
         B[40+i][j]=1            # Left arm followed by right arm 40 => Base + Both Legs
         j=j+1
@@ -170,12 +171,18 @@ def get_fhol(model,sim):
 def get_pos(eul,pos,vec):
     # Part 1
     Rot=R.from_euler('xyz',eul,degrees=True)            # Rotation by euler - XYZ order
-    Trans=pos                                           # Translation by pos
-    Mat1=np.block([  [Rot,pos],                         # Homogenous Transformation matrix 
-                    [0,0,0,1]])
+    Trans=np.reshape(pos,(3,1))                         # Translation by pos
 
-    pos_tr=Mat1@np.block([  [vec],
+    Rot=Rot.as_matrix()
+    Mat=np.block([      [Rot,Trans],                    # Homogenous Transformation matrix 
+                        [0,0,0,1]])
+
+
+    pos_tr=Mat@np.block([   [vec[0]],
+                            [vec[1]],
+                            [vec[2]],
                             [1]])
+    pos_tr=pos_tr[0:3]
 
     return pos_tr       #(3x1)
     
@@ -220,25 +227,26 @@ def get_JfootT(model,sim):
     for elem in ft_ends:
         ft_end_rtr.append(get_pos(eull,posl,elem))        
 
-    ft_jac_l=np.empty((48,1)) # Left foot Jacobian
-    ft_jac_r=np.empty((48,1)) # Right foot Jacobian
-    i_ltr=12    # body_id-ltr
-    i_rtr=26    # body_id-rtr
+    ft_jac_l=np.empty((48,1))   # Left foot Jacobian
+    ft_jac_r=np.empty((48,1))   # Right foot Jacobian
+    i_ltr=12                    # body_id-ltr
+    i_rtr=26                    # body_id-rtr
     temp=np.array((3*model.nv))
+    temp1=np.arra((1))
     jacr=np.empty((1))
 
     # Get the jacobians
     for elem in ft_end_ltr:
         mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_ltr) ###  ###Check mode of input for elem
-        temp=np.transpose(temp.reshape((3,48)))           # Transpose
-        ft_jac_l=np.hstack((ft_jac_l,temp))
+        temp1=np.transpose(temp.reshape((3,model.nv)))           # Transpose
+        ft_jac_l=np.hstack((ft_jac_l,temp1))
 
     ft_jac_l=np.delete(ft_jac_l,0,1)
     
     for elem in ft_end_rtr:
         mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_rtr) ###  ###Check mode of input for elem
-        temp=np.transpose(temp.reshape((3,48)))           # Transpose
-        ft_jac_r=np.hstack((ft_jac_r,temp))
+        temp1=np.transpose(temp.reshape((3,model.nv)))           # Transpose
+        ft_jac_r=np.hstack((ft_jac_r,temp1))
 
     ft_jac_r=np.delete(ft_jac_r,0,1)
 
