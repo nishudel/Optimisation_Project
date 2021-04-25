@@ -15,6 +15,7 @@ def get_torques(model,sim):
     torque=np.empty((20,1))
     with mosek.Env() as env:
         with env.Task(0,0) as task:
+            
             # Decision Variables:
             numvars=51          # T-20 ; F_contact=24 ; e =6 ; t=1
             task.appendvars(numvars)
