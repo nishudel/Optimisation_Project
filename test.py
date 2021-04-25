@@ -1,8 +1,7 @@
 import numpy as np
 
-a=np.empty((3,1))
-b=np.ones_like(a)
-c=np.hstack((a,b))
-c=np.delete(c,0,1)
-print(c)
 
+a=2*np.eye(3)
+b=5*np.ones((3,1))
+c=a@b
+print(c[1][0])

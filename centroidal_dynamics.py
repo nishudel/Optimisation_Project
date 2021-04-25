@@ -55,12 +55,12 @@ def get_1XGT(model,sim):
     X_1_G_T=np.array([      [R_1_0              ,np.matmul(R_1_0,np.transpose(skew(P_b_cm)))],
                             [np.zeros((3,3))    ,R_1_0 ]])
 
-    return X_1_G_T
+    return X_1_G_T      #(6x6)
 
 # Isolating Base frame quantities
 def get_U1(model):
     U1= np.array([np.ones((6,6)) ,np.zeros((6,model.nv-6))])
-    return U1   
+    return U1       #(6xnv)   
 
 
 # Get Adot*qdot matirx
@@ -81,7 +81,7 @@ def get_A_Hinv(model,sim):
     U1=get_U1(model)
     AHinv=X_1_G_T@U1
 
-    return AHinv
+    return AHinv        #(6xnv)
 
 # Get G matrix
 def get_G(model,sim):
@@ -129,7 +129,7 @@ def get_B(model,sim):
                         [blockrl],
                         [blocka]    ])
 
-    return B
+    return B        #(nvx20)
 
 # Vector of holonomic constraint forces (excluding ground contact)
 # These are due to the equality constraints imposed 
@@ -197,8 +197,8 @@ def get_JfootT(model,sim):
 
     ft_jac_l=np.empty((48,1)) # Left foot Jacobian
     ft_jac_r=np.empty((48,1)) # Right foot Jacobian
-    i_ltr=10    # id-ltr
-    i_rtr=20    # id-rtr
+    i_ltr=12    # body_id-ltr
+    i_rtr=26    # body_id-rtr
     temp=np.array((3*model.nv))
     jacr=np.empty((1))
 
@@ -220,6 +220,7 @@ def get_JfootT(model,sim):
     return ft_jac_l,ft_jac_r        #(nvx12) and (nvx12)
     
 # Calculate the b_t term of the equations
+# Take note of the default value of target dynamics
 def get_bt(sim,model,rdot_tc=np.zeros((6,1))):
     AHinv=get_A_Hinv(model,sim)
     G=get_G(model,sim)
