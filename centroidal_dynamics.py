@@ -79,7 +79,6 @@ def get_A_Hinv(model,sim):
     
     X_1_G_T=get_1XGT(model,sim)
     U1=get_U1(model)
-
     AHinv=X_1_G_T@U1
 
     return AHinv
@@ -95,8 +94,7 @@ def get_G(model,sim):
     bodylist=np.arange(1,37)
 
     g=9.8
-    
-    
+        
     for i in bodylist:        
         mp.functions.mj_jac(model,sim.data,temp,jacr,body_ipos[i,:],i)
         jacp+=mi[i]*g*temp
@@ -128,8 +126,6 @@ def get_B(sim,model):
 
     # Right arm
     #blockra=np.array([  [np.zeros((4,16)),              np.diag([1,1,1,1])]])
-
-
     B=np.block([        [blockb],
                         [blockll],
                         [blockrl],
@@ -149,7 +145,6 @@ def get_fhol(model,sim):
 # wrt the "parent frame" to the "frame"
 
 def get_pos(eul,pos,vec):
-
     # Part 1
     Rot=R.from_euler('xyz',eul,degrees=True)            # Rotation by euler - XYZ order
     Trans=pos                                           # Translation by pos
@@ -221,6 +216,16 @@ def get_JfootT(model,sim):
     
     return ft_end_ltr,ft_jac_r
     
+
+def get_bt(sim,model,rdot_tc=np.zeros((6,1))):
+    AHinv=get_A_Hinv(model,sim)
+    G=get_G(model,sim)
+    bt=rdot_tc+AHinv@G
+
+    return bt
+
+
+
 
 
     
