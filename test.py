@@ -1,9 +1,8 @@
 import numpy as np
 
-a=np.ones((2,3))
-c=np.zeros((2,1))
-c[:,0]=a[:,0]
+a=np.empty((3,1))
+b=np.ones_like(a)
+c=np.hstack((a,b))
+c=np.delete(c,0,1)
 print(c)
-
-
 

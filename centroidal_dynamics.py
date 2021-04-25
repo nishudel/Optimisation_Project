@@ -99,14 +99,12 @@ def get_G(model,sim):
         mp.functions.mj_jac(model,sim.data,temp,jacr,body_ipos[i,:],i)
         jacp+=mi[i]*g*temp
     
-    jac_p=np.reshape(jacp,(3,48))
-    print(sim.data.time)
-    print(jac_p[2,:])
-    
-    return jac_p[2,:]
+    jac_p=np.transpose(np.reshape(jacp,(3,48)))
+   
+    return jac_p[:,2]  #(nvx1)  
 
 # Mtrix that maps input torque to q
-def get_B(sim,model):
+def get_B(model,sim):
     # Base
     blockb=np.block([np.zeros((6,20))])
     # Left leg
@@ -137,8 +135,8 @@ def get_B(sim,model):
 # These are due to the equality constraints imposed 
 # at the end of rods 
 def get_fhol(model,sim):
-    f_hol=sim.data.qfrc_constraint
-    return f_hol
+    f_hol=sim.data.qfrc_constraint                  
+    return f_hol    #(nvx1)
 
 
 # To get the position of a point (vec- known wrt say a "frame")
@@ -154,13 +152,13 @@ def get_pos(eul,pos,vec):
     pos_tr=Mat1@np.block([  [vec],
                             [1]])
 
-    return pos_tr
+    return pos_tr       #(3x1)
     
 
     
 # Homogenous transformation vector     
 
-# Calculate the jacobian asociate to 
+# Calculate the jacobian transpose asociated to 
 # 4 corner points at each foot
 # We get 24 jacobians i.e, one each for x,y,z corrdinates at each point
 def get_JfootT(model,sim):
@@ -171,20 +169,20 @@ def get_JfootT(model,sim):
 
     # End point coordinates wrt foot frame - Common for both feet
 
-    l1=np.array([l/2,-w/2,0])                 #      ***l2***--l1***
-    l2=np.array([l/2,w/2/0])                  #         |      |
-    l3=np.array([-l/2,w/2,0])                 #         |      |
-    l4=np.array([-l/2,-w/2,0])                #      ***l3***--l4**    
+    f1=np.array([l/2,-w/2,0])                 #      ***l2***--l1***
+    f2=np.array([l/2,w/2/0])                  #         |      |
+    f3=np.array([-l/2,w/2,0])                 #         |      |
+    f4=np.array([-l/2,-w/2,0])                #      ***l3***--l4**    
 
-    ft_ends=[l1,l2,l3,l4]
+    ft_ends=[f1,f2,f3,f4]
 
     # Get position of the above points wrt toe roll
 
-    # Left foot
+    # Left foot     - wrt ltr
     posl=np.array([0, -0.05456, -0.0315])
     eull=np.array([-60, 0, -90])
 
-    # Right foot
+    # Right foot    - wrt rtr
     posr=np.array([0, -0.05456, -0.0315])
     eulr=np.array([-60, 0, -90])
 
@@ -197,8 +195,8 @@ def get_JfootT(model,sim):
     for elem in ft_ends:
         ft_end_rtr.append(get_pos(eull,posl,elem))        
 
-    ft_jac_l=[] # Left foot Jacobian
-    ft_jac_r=[] # Right foot Jacobian
+    ft_jac_l=np.empty((48,1)) # Left foot Jacobian
+    ft_jac_r=np.empty((48,1)) # Right foot Jacobian
     i_ltr=10    # id-ltr
     i_rtr=20    # id-rtr
     temp=np.array((3*model.nv))
@@ -207,22 +205,41 @@ def get_JfootT(model,sim):
     # Get the jacobians
     for elem in ft_end_ltr:
         mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_ltr) ###  ###Check mode of input for elem
-        ft_jac_l.append(temp)
+        temp=np.transpose(temp.reshape((3,48)))           # Transpose
+        ft_jac_l=np.hstack((ft_jac_l,temp))
+
+    ft_jac_l=np.delete(ft_jac_l,0,1)
     
     for elem in ft_end_rtr:
         mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_rtr) ###  ###Check mode of input for elem
-        ft_jac_r.append(temp)
+        temp=np.transpose(temp.reshape((3,48)))           # Transpose
+        ft_jac_r=np.hstack((ft_jac_r,temp))
 
-    
-    return ft_end_ltr,ft_jac_r
-    
+    ft_jac_r=np.delete(ft_jac_r,0,1)
 
+    return ft_jac_l,ft_jac_r        #(nvx12) and (nvx12)
+    
+# Calculate the b_t term of the equations
 def get_bt(sim,model,rdot_tc=np.zeros((6,1))):
     AHinv=get_A_Hinv(model,sim)
     G=get_G(model,sim)
-    bt=rdot_tc+AHinv@G
+    f_hol=get_fhol(model,sim)
+    bt=rdot_tc+AHinv@(G-f_hol)
 
-    return bt
+    return bt       #(6x1)
+
+
+# Calculate cross-coupling inverse operational-space (task-space) inertia matrix- for 
+
+def get_lambdaTF(model,sim):
+    AHinv=get_A_Hinv(model,sim)
+    B=get_B(model,sim)
+    ft_jac_l,ft_jac_r=get_JfootT(model,sim)
+    ft_jac=np.hstack((ft_jac_l,ft_jac_r))
+    lambda_T=AHinv@B                       # For torque
+    lambda_F=AHinv@ft_jac                  # For Foot contact
+
+    return lambda_T,lambda_F   #(6x20) and (6x24)                            
 
 
 
