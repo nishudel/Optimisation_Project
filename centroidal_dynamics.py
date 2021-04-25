@@ -201,10 +201,10 @@ def get_JfootT(model,sim):
 
     # End point coordinates wrt foot frame - Common for both feet
 
-    f1=np.array([l/2,-w/2,0])                 #      ***l2***--l1***
-    f2=np.array([l/2,w/2/0])                  #         |      |
-    f3=np.array([-l/2,w/2,0])                 #         |      |
-    f4=np.array([-l/2,-w/2,0])                #      ***l3***--l4**    
+    f1=np.array([l/2,-w/2,0])                 #      ***f2***--f1***                ^ x axis
+    f2=np.array([l/2,w/2/0])                  #         |      |                    |
+    f3=np.array([-l/2,w/2,0])                 #         |      |                    |
+    f4=np.array([-l/2,-w/2,0])                #      ***f3***--f4**  y-axis<--------|    
 
     ft_ends=[f1,f2,f3,f4]
 
@@ -251,6 +251,7 @@ def get_JfootT(model,sim):
     ft_jac_r=np.delete(ft_jac_r,0,1)
 
     return ft_jac_l,ft_jac_r        #(nvx12) and (nvx12)
+
     
 # Calculate the b_t term of the equations
 # Take note of the default value of target dynamics
@@ -263,7 +264,7 @@ def get_bt(sim,model,rdot_tc=np.zeros((6,1))):
     return bt       #(6x1)
 
 
-# Calculate cross-coupling inverse operational-space (task-space) inertia matrix- for 
+# Calculate cross-coupling inverse operational-space (task-space) inertia matrix
 
 def get_lambdaTF(model,sim):
     AHinv=get_A_Hinv(model,sim)
