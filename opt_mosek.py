@@ -32,14 +32,6 @@ def get_torques(model,sim):
     # 'b' term for the above equality constraint
     b_lambda=get_bt(sim,model)
     
-
-    ### Inequality Constraints
-
-    ##  
-
-
-
-
     ## Defining Friction Cone Constraints: Use conservative bound - Restrict to Pyramid
 
     # Step 1: Friction Co-efficient
@@ -102,26 +94,71 @@ def get_torques(model,sim):
 
 
             # Equality Constraints
-            numcon_eq=6
+            numcon=0                        # Keep track of the number of constraints already used
+           
+            val=np.empty((1,numvars))       # Temperory memory for a row 
+            j=np.arange(numvars)            # To indicate all columns 
+
+            numcon_eq=6                     # Number of equality constraints
+            
+
             task.appendcons(numcon_eq)
             fx=mosek.boundkey.fx            # Setting up boundkey for equality constraint i.e HX=B
-            
-            val=np.empty((1,numvars))       # Temperory memory for a row 
-            j=np.arange(numvars)            # To indicate all columns                                               
-            for i in range(0,6):
-                key_eq.append(fx)            # Bound Key
-                
+
+            for i in range(0+numcon,6+numcon):
                 val=H[i,:]                  # Collect a row
                 task.putarow(i,j,val)
 
                 task.putconbound(i,fx,b_lambda[i][0],b_lambda[i][0]) # Setting upper=lower bound for equality
 
+
+            numcon+=numcon_eq    
+
             # Inequality Constraints - Append to earlier Constraints
 
-            # Max,Min bound on e to be t  i.e  inf(||e||)<=t
+            # Max,Min bound on e to be t  i.e  inf-norm(e)<=t
+
+            numcon_infnorm=12       # 6 for lower and 6 for upper bounds
+            
+            task.appendcons(numcon_infnorm)
+
+            up=mosek.boundkey.up    # Bound key- Upper bound 
+
+            A_infnorm=np.block([    [np.zeros((6,44)),np.eye(6),-1*np.ones((6,1))],
+                                    [np.zeros((6,44)),-1*np.eye(6),-1*np.ones((6,1))]])
+            
+            j=np.arange(44,numvars,1)               # Non-empty colm of A_infnorm
+
+            for i in range(0+numcon,12+numcon):
+                val=A_infnorm[i,44:numvars]         # Collect nonempty part of each row
+                task.putarow(i,j,val)
+
+                task.putconbound(i,up,-inf,0)       # Setting upper bound as zero
+
+            numcon+=numcon_infnorm
+
+            # Friction Cone Constraints : |F_x+F_y|<F_z/(2*myu)
+
+            numcon_fr=16                            # 8 for upper and 8 for lower bound type constraint
+            block1=np.array([1, 1, -1/(2*myu)])
+            block2=np.array([-1, -1, -1/(2*myu)])
+
+            for i in range(0+numcon,8+numcon):
+                colm_addr=np.arange(20+3*i,20+3*(i+1),1)
+                # Fr_upper_bnd
+                task.putarow(i,colm_addr,block1)
+                task.putconbound(i,up,-inf,0)
+                # Fr_lower_bnd
+                task.putarow(i+8,colm_addr,block2)
+                task.putconbound(i+8,up,-inf,0)
 
 
-                
+
+
+            
+
+
+
 
 
 
