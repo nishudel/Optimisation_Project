@@ -103,6 +103,7 @@ def get_G(model,sim):
    
     return jac_p[:,2]  #(nvx1)  
 
+'''
 # Mtrix that maps input torque to q
 def get_B(model,sim):
     # Base
@@ -121,15 +122,39 @@ def get_B(model,sim):
     sub1=np.zeros((8,12))
     sub2=np.identity(8)
     blocka=np.block([sub1,sub2])
-
-    # Right arm
-    #blockra=np.array([  [np.zeros((4,16)),              np.diag([1,1,1,1])]])
+    
     B=np.block([        [blockb],
                         [blockll],
                         [blockrl],
                         [blocka]    ])
 
     return B        #(nvx20)
+
+
+
+'''
+
+def get_B():
+    B=np.zeros((48,20))
+    
+    row_addr=[0,1,2,6,9,13]     # Non-zero row address for left,right legs
+    
+    # Legs
+    j=0                         # Actuator number
+    for i in row_addr:
+        B[6+row_addr][j]=1      # Left Leg  6 => Base
+        B[23+row_addr][j+6]=1   # Right Leg 23=> Base + Left Leg 
+        j=j+1
+
+    j=12                        # Legs make up 12 actuator
+
+    for i in range(0,8):
+        B[40+i][j]=1            # Left arm followed by right arm 40 => Base + Both Legs
+        j=j+1
+
+    return B                    # (nvx20)
+
+
 
 # Vector of holonomic constraint forces (excluding ground contact)
 # These are due to the equality constraints imposed 
@@ -234,7 +259,7 @@ def get_bt(sim,model,rdot_tc=np.zeros((6,1))):
 
 def get_lambdaTF(model,sim):
     AHinv=get_A_Hinv(model,sim)
-    B=get_B(model,sim)
+    B=get_B()
     ft_jac_l,ft_jac_r=get_JfootT(model,sim)
     ft_jac=np.hstack((ft_jac_l,ft_jac_r))
     lambda_T=AHinv@B                       # For torque

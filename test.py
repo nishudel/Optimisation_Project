@@ -1,8 +1,9 @@
 import numpy as np
 
 
-a=2*np.eye(3)
-b=5*np.ones((3,1))
-b=a[0,0:3]
-d=2
-print(b)
+a=2*np.eye(5)
+b=[0,1,3]
+for i in range(0,4):
+    for j in b:
+        a[1+i][b]=0
+print(a)
