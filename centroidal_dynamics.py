@@ -52,14 +52,14 @@ def get_1XGT(model,sim):
 
     ## Step 3: Obtain 1XGT
 
-    X_1_G_T=np.array([      [R_1_0              ,np.matmul(R_1_0,np.transpose(skew(P_b_cm)))],
+    X_1_G_T=np.block([      [R_1_0              ,np.matmul(R_1_0,np.transpose(skew(P_b_cm)))],
                             [np.zeros((3,3))    ,R_1_0 ]])
 
     return X_1_G_T      #(6x6)
 
 # Isolating Base frame quantities
 def get_U1(model):
-    U1= np.array([np.ones((6,6)) ,np.zeros((6,model.nv-6))])
+    U1= np.block([np.ones((6,6)) ,np.zeros((6,model.nv-6))])
     return U1       #(6xnv)   
 
 
@@ -183,8 +183,9 @@ def get_pos(eul,pos,vec):
                             [vec[2]],
                             [1]])
     pos_tr=pos_tr[0:3]
+    pos_tr=np.transpose(pos_tr)
 
-    return pos_tr       #(3x1)
+    return pos_tr       #(1x3)
     
 
     
@@ -202,7 +203,7 @@ def get_JfootT(model,sim):
     # End point coordinates wrt foot frame - Common for both feet
 
     f1=np.array([l/2,-w/2,0])                 #      ***f2***--f1***                ^ x axis
-    f2=np.array([l/2,w/2/0])                  #         |      |                    |
+    f2=np.array([l/2,w/2,0])                  #         |      |                    |
     f3=np.array([-l/2,w/2,0])                 #         |      |                    |
     f4=np.array([-l/2,-w/2,0])                #      ***f3***--f4**  y-axis<--------|    
 
@@ -217,40 +218,49 @@ def get_JfootT(model,sim):
     # Right foot    - wrt rtr
     posr=np.array([0, -0.05456, -0.0315])
     eulr=np.array([-60, 0, -90])
-
-    ft_end_ltr=[]
-    ft_end_rtr=[]
-
-    for elem in ft_ends:
-        ft_end_ltr.append(get_pos(eull,posl,elem))
-
-    for elem in ft_ends:
-        ft_end_rtr.append(get_pos(eull,posl,elem))        
-
-    ft_jac_l=np.empty((48,1))   # Left foot Jacobian
-    ft_jac_r=np.empty((48,1))   # Right foot Jacobian
-    i_ltr=12                    # body_id-ltr
-    i_rtr=26                    # body_id-rtr
-    temp=np.array((3*model.nv))
-    temp1=np.arra((1))
-    jacr=np.empty((1))
-
-    # Get the jacobians
-    for elem in ft_end_ltr:
-        mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_ltr) ###  ###Check mode of input for elem
-        temp1=np.transpose(temp.reshape((3,model.nv)))           # Transpose
-        ft_jac_l=np.hstack((ft_jac_l,temp1))
-
-    ft_jac_l=np.delete(ft_jac_l,0,1)
     
-    for elem in ft_end_rtr:
-        mp.functions.mj_jac(model,sim.data,temp,jacr,elem,i_rtr) ###  ###Check mode of input for elem
-        temp1=np.transpose(temp.reshape((3,model.nv)))           # Transpose
-        ft_jac_r=np.hstack((ft_jac_r,temp1))
+    ft_end_ltr=np.zeros((1,3))
+    ft_end_rtr=np.zeros((1,3))
 
-    ft_jac_r=np.delete(ft_jac_r,0,1)
+       
+    for elem in ft_ends:
+        ft_end_ltr=np.vstack((ft_end_ltr,get_pos(eull,posl,elem)))
 
-    return ft_jac_l,ft_jac_r        #(nvx12) and (nvx12)
+    
+    
+    for elem in ft_ends:
+        ft_end_rtr=np.vstack((ft_end_rtr,get_pos(eulr,posr,elem)))
+    
+
+    ft_ltr =np.array(ft_end_ltr[1:5,:])
+    ft_rtr =np.array(ft_end_rtr[1:5,:]) 
+
+    jac_p_temp=np.ones((3*model.nv))
+    jac_r=np.ones((3*model.nv))
+    jac_p=np.zeros((48,1))
+
+    for i in range(0,4):
+        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_ltr[i,:],12)
+        jac=np.reshape(jac_p_temp,(3,model.nv))
+        jac=np.transpose(jac)
+        jac_p=np.block([jac_p,jac])
+    
+    jac_l=np.array(jac_p[:,1:13])
+
+
+    #jac_p_temp=np.ones((3*model.nv))
+    #jac_r=np.ones((3*model.nv))
+    jac_p=np.zeros((48,1))
+
+    for i in range(0,4):
+        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_rtr[i,:],26)
+        jac=np.reshape(jac_p_temp,(3,model.nv))
+        jac=np.transpose(jac)
+        jac_p=np.block([jac_p,jac])
+    
+    jac_r=np.array(jac_p[:,1:13])
+    
+    return jac_l,jac_r            #(nvx12) and (nvx12)
 
     
 # Calculate the b_t term of the equations
@@ -269,11 +279,19 @@ def get_bt(sim,model,rdot_tc=np.zeros((6,1))):
 def get_lambdaTF(model,sim):
     AHinv=get_A_Hinv(model,sim)
     B=get_B()
+    ft_jac_l=np.empty((48,12))
+    ft_jac_r=np.empty((48,12))
+    ft_jac=np.empty((48,24))
     ft_jac_l,ft_jac_r=get_JfootT(model,sim)
-    ft_jac=np.hstack((ft_jac_l,ft_jac_r))
-    lambda_T=AHinv@B                       # For torque
-    lambda_F=AHinv@ft_jac                  # For Foot contact
-
+    ft_jac=np.block([ft_jac_l,ft_jac_r])
+    lambda_T=np.zeros((6,20))#AHinv@B                       # For torque
+    lambda_F=np.zeros((6,24))#AHinv@ft_jac                  # For Foot contact
+    '''
+    np.delete(ft_jac_l,np.arange(0,48),0)
+    np.delete(ft_jac_r,np.arange(0,48),0)
+    np.delete(AHinv,np.arange(0,6),0)
+    np.delete(ft_jac,np.arange(0,48),0)
+    '''
     return lambda_T,lambda_F   #(6x20) and (6x24)                            
 
 
