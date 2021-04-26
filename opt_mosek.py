@@ -31,7 +31,7 @@ def get_torques(model,sim):
             H=np.block([lambda_T, lambda_F, np.eye(6) ,np.zeros((6,1))])
 
             # 'b' term for the above equality constraint
-            b_lambda=get_bt(sim,model)
+            b_lambda=get_bt(model,sim)
 
             ## Torque  limits
             gear=np.zeros((model.nu,2))

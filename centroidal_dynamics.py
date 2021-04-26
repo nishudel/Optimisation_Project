@@ -285,16 +285,13 @@ def get_lambdaTF(model,sim):
     ft_jac_l=np.empty((48,12))
     ft_jac_r=np.empty((48,12))
     ft_jac=np.empty((48,24))
+
     ft_jac_l,ft_jac_r=get_JfootT(model,sim)
     ft_jac=np.block([ft_jac_l,ft_jac_r])
-    lambda_T=np.zeros((6,20))#AHinv@B                       # For torque
-    lambda_F=np.zeros((6,24))#AHinv@ft_jac                  # For Foot contact
-    '''
-    np.delete(ft_jac_l,np.arange(0,48),0)
-    np.delete(ft_jac_r,np.arange(0,48),0)
-    np.delete(AHinv,np.arange(0,6),0)
-    np.delete(ft_jac,np.arange(0,48),0)
-    '''
+    
+    lambda_T=AHinv@B                       # For torque
+    lambda_F=AHinv@ft_jac                  # For Foot contact
+
     return lambda_T,lambda_F   #(6x20) and (6x24)                            
 
 
