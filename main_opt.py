@@ -38,10 +38,9 @@ while True:
     for i in bodylist:        
         mp.functions.mj_jac(model,sim.data,temp,jacr,body_ipos[i,:],i)
     '''
-    A,B=f.get_JfootT(model,sim)
-
-    print(A)
-    print(B)
+    U,V=get_lambdaTF(model,sim)
+    print(U.shape)
+    print(V.shape)
     
     #np.delete(H,np.arange(0,6),0)
     #view.render()

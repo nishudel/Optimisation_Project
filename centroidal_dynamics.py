@@ -65,7 +65,6 @@ def get_U1(model):
 
 # Get Adot*qdot matirx
 def get_Adot_qdot(model,sim):
-
     X_1_G_T=get_1XGT(model,sim)
     U1=get_U1(model)
     C=sim.data.qfrc_bias
@@ -76,7 +75,6 @@ def get_Adot_qdot(model,sim):
 
 # Get A*(H_inverse)    
 def get_A_Hinv(model,sim):
-    
     X_1_G_T=get_1XGT(model,sim)
     U1=get_U1(model)
     AHinv=X_1_G_T@U1
@@ -100,8 +98,11 @@ def get_G(model,sim):
         jacp+=mi[i]*g*temp
     
     jac_p=np.transpose(np.reshape(jacp,(3,48)))
+
+    G=np.zeros((48,1))
+    G[:,0]=jac_p[:,2]
    
-    return jac_p[:,2]  #(nvx1)  
+    return G  #(nvx1)  
 
 '''
 # Mtrix that maps input torque to q
@@ -161,7 +162,9 @@ def get_B():
 # These are due to the equality constraints imposed 
 # at the end of rods 
 def get_fhol(model,sim):
-    f_hol=sim.data.qfrc_constraint                  
+    qfrc_force=sim.data.qfrc_constraint
+    f_hol=np.zeros((model.nv,1))
+    f_hol[:,0]=qfrc_force
     return f_hol    #(nvx1)
 
 
@@ -265,7 +268,7 @@ def get_JfootT(model,sim):
     
 # Calculate the b_t term of the equations
 # Take note of the default value of target dynamics
-def get_bt(sim,model,rdot_tc=np.zeros((6,1))):
+def get_bt(model,sim,rdot_tc=np.zeros((6,1))):
     AHinv=get_A_Hinv(model,sim)
     G=get_G(model,sim)
     f_hol=get_fhol(model,sim)
