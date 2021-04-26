@@ -53,7 +53,7 @@ def get_torques(model,sim):
                     task.putvarbound(i,mosek.boundkey.ra,trq_range[i][0],trq_range[i][1])     # Torque limits
                 elif i==50:                                                 # The bound on error i.e t
                     task.putvarbound(i,mosek.boundkey.lo,0,+inf)
-                elif i>=20 and i<=43 and (i+1)%3==0:                        # Z-Ground reaction force>=0
+                elif i>=20 and i<=43 and (i-1)%3==0:                        # Z-Ground reaction force>=0
                     task.putvarbound(i,mosek.boundkey.lo,0,+inf)
                 else:                                                       # Otherwise
                     task.putvarbound(i,mosek.boundkey.fr,-inf,+inf)
@@ -122,10 +122,32 @@ def get_torques(model,sim):
             numcon+=numcon_fr
 
             # Define the nature of task
-            task.putobjsense(mosek.objsense.maximize)
+            task.putobjsense(mosek.objsense.minimize)
 
             # Solve the problem
             task.optimize()
+
+            # Check Status 
+            solsta = task.getsolsta(mosek.soltype.bas)
+
+            if (solsta == mosek.solsta.optimal):
+                xx = [0.] * numvars
+                task.getxxslice(mosek.soltype.bas,0,20,xx) # storing just the torques
+                torque[:,0]=xx
+            elif (solsta == mosek.solsta.dual_infeas_cer or solsta == mosek.solsta.prim_infeas_cer):
+                print("Primal or dual infeasibility certificate found.\n")
+            elif solsta == mosek.solsta.unknown:
+                print("Unknown solution status")
+            else:
+                print("Other solution status")
+
+    return torque        
+
+
+
+
+
+
 
 
 

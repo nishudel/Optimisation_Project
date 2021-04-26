@@ -20,34 +20,10 @@ force=np.array([6,1])
 dst=np.empty(2304)
 H=np.ones(48)
 while True:
-    #print(sim.data.qpos)
-    # [0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0. 0.]
-    #sim.data.ctrl[2]=0.5*np.sin(sim.data.time)
-    sim.step()
-    '''
-    jacp=np.empty((3*model.nv))
-    temp=np.empty((3*model.nv))
-    jacr=np.empty((1))
-    pos=np.empty((1,3))
-    pos[0,:]=np.array([0,1,2])
-    body_ipos=np.block([[pos],[pos],[pos],[pos]])
-    mi=model.body_mass
-    bodylist=np.arange(1,4)
-    g=9.8
-        
-    for i in bodylist:        
-        mp.functions.mj_jac(model,sim.data,temp,jacr,body_ipos[i,:],i)
-    '''
-    U,V=get_lambdaTF(model,sim)
-    print(U.shape)
-    print(V.shape)
     
-    #np.delete(H,np.arange(0,6),0)
-    #view.render()
-    #print(sim.data.time)
-    #print(ft_jac_l)
-    #print(sim.data.qpos)
-
+    
+    sim.step()
+            
 
 
 
