@@ -1,6 +1,7 @@
 import numpy as np
 import mujoco_py as mp
 from scipy.spatial.transform import Rotation as R
+import class_def as cldef
 
 def skew(x):
     return np.array([[0, -x[2], x[1]],
@@ -296,6 +297,28 @@ def get_lambdaTF(model,sim):
 
 
 
+def get_dynamics(model,sim):
+    ## nu
+    nu=model.nu
+
+    ## Torque  limits
+    gear=np.zeros((model.nu,2))
+    gear[:,0]=model.actuator_gear[:,0]
+    gear[:,1]=gear[:,0]
+    ctrl_range=np.zeros((model.nu,2))
+    ctrl_range=model.actuator_ctrlrange
+    trq_range=np.multiply(gear,ctrl_range)
+
+    ## Dynamics: [ lambda_T lambda_Foot ones zeros]  6x(20 24 6 1)
+    lambda_T,lambda_F=get_lambdaTF(model,sim)
+    H=np.block([lambda_T, lambda_F, np.eye(6) ,np.zeros((6,1))])
+
+    ## b_t
+    b_t=get_bt(model,sim)
+
+    dyn_data=cldef.centrl_dyn(nu,trq_range,H,b_t)
+
+    return dyn_data
 
 
     

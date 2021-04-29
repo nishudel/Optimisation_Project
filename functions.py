@@ -1,104 +1,146 @@
-import numpy as np
+import sys
+import mosek
 import mujoco_py as mp
-from scipy.spatial.transform import Rotation as R
+from centroidal_dynamics import *
+import class_def 
+
+# Since the value of infinity is ignored, we define it solely
+# for symbolic purposes
+inf = 0.0
+
+# Define a stream printer to grab output from MOSEK
+def streamprinter(text):
+    sys.stdout.write(text)
+    sys.stdout.flush()
+
+# Returns the non-empty set of index and vals of nparray H
+def get_putaijlist(H):                  
+    index=np.transpose(np.nonzero(H))
+    x_index=index[:,0]
+    y_index=index[:,1]
+    val=H[index[:,0],index[:,1]]
+
+    return x_index,y_index,val
 
 
-# To get the position of a point (vec- known wrt say a "frame")
-# wrt the "parent frame" to the "frame"
+def get_torques(dyn,torque):
+    #torque=np.zeros(20)
+    with mosek.Env() as env:
+        with env.Task(0,0) as task:
+            task.set_Stream(mosek.streamtype.log, streamprinter)
 
-def get_pos(eul,pos,vec):
-    # Part 1
-    Rot=R.from_euler('xyz',eul,degrees=True)            # Rotation by euler - XYZ order
-    Trans=np.reshape(pos,(3,1))                         # Translation by pos
+            # Decision Variables:
+            numvars=51          # T-20 ; F_contact=24 ; e =6 ; t=1
+            task.appendvars(numvars)
+            
+            inf=0.0
 
-    Rot=Rot.as_matrix()
-    Mat=np.block([      [Rot,Trans],                    # Homogenous Transformation matrix 
-                        [0,0,0,1]])
+            ### Objective function- C matrix
+            C=np.zeros((1,51))
+            C[0][50]=1
+ 
+            # Set the C matrix and Variable limits
+            for i in range(0,51):
+                # For objective
+                task.putcj(i,C[0][i])              
+
+                # Bounds on decision variables
+                if i<=19:
+                    task.putvarbound(i,mosek.boundkey.ra,dyn.trq_range[i][0],dyn.trq_range[i][1])     # Torque limits
+                elif i==50:                                                 # The bound on error i.e t
+                    task.putvarbound(i,mosek.boundkey.lo,0,+inf)
+                elif i>=20 and i<=43 and (i-1)%3==0:                        # Z-Ground reaction force>=0
+                    task.putvarbound(i,mosek.boundkey.lo,0,+inf)
+                else:                                                       # Otherwise
+                    task.putvarbound(i,mosek.boundkey.fr,-inf,+inf)
+
+            ## Equality Constraints for Dynamics
+
+            numcon=0                        # Keep track of the number of constraints already used
+            numcon_eq=6                     # Number of equality constraints            
+
+            task.appendcons(numcon_eq)
+
+            fx=mosek.boundkey.fx                                        # Setting up boundkey for equality constraint i.e HX=B
+
+            for i in range(0+numcon,6+numcon):
+                task.putconbound(i,fx,dyn.b_t[i][0],dyn.b_t[i][0])      # Setting upper=lower bound for equality
+
+            task.putaijlist(dyn.H.x_index,dyn.H.y_index,dyn.H.value)    # Setting the Affine matrix                               
+
+            numcon+=numcon_eq 
+
+            ### Inequality Constraints 
+
+            ## 1) Max,Min bound on e to be t  i.e  inf-norm(e)<=t
+
+            numcon_infnorm=12       # 6 for lower and 6 for upper bounds
+            
+            task.appendcons(numcon_infnorm)
+
+            up=mosek.boundkey.up    # Bound key- Upper bound 
+            
+            A_infnorm=np.block([    [np.zeros((6,44)),np.eye(6),-1*np.ones((6,1))],
+                                    [np.zeros((6,44)),-1*np.eye(6),-1*np.ones((6,1))]])
+
+            for i in range(0+numcon,12+numcon):        
+                task.putconbound(i,up,-inf,0)       # Setting upper bound as zero
+
+            subi,subj,value=get_putaijlist(A_infnorm)                           # Sparse kind of form in H
+            task.putaijlist(subi,subj,value)
+            
+            numcon+=numcon_infnorm
 
 
-    pos_tr=Mat@np.block([   [vec[0]],
-                            [vec[1]],
-                            [vec[2]],
-                            [1]])
-    pos_tr=pos_tr[0:3]
-    pos_tr=np.transpose(pos_tr)
+            ## 2) Friction Cone Constraints : 
+            #    Used a conservative bound - Restrict Cone to a Pyramid  |F_x+F_y|<F_z/(2*myu) 
+            
+            myu=0.7                                         ######Friction Coefficient #######
 
-    return pos_tr       #(1x3)
+            numcon_fr=16                                    # 8 for upper and 8 for lower bound type constraint 
+            task.appendcons(numcon_fr)
+            block1=np.array([1, 1, -1/(2*myu)])
+            block2=np.array([-1, -1, -1/(2*myu)])
+
+            for i in range(0+numcon,8+numcon):
+                colm_addr=np.arange(20+3*(i-numcon),20+3*(i-numcon+1),1)    # Non-empty columns   
+                # Fr_upper_bnd
+                task.putarow(i,colm_addr,block1)
+                task.putconbound(i,up,-inf,0)
+                # Fr_lower_bnd
+                task.putarow(i+8,colm_addr,block2)
+                task.putconbound(i+8,up,-inf,0)
+
+            numcon+=numcon_fr
+
+            # Define the nature of task
+            task.putobjsense(mosek.objsense.minimize)
+            
+            # Solve the problem
+            task.optimize()
+            task.solutionsummary(mosek.streamtype.msg)
+
+            # Check Status 
+            solsta = task.getsolsta(mosek.soltype.bas)
+            task.__del__
+            if (solsta == mosek.solsta.optimal):
+                #xx = [0.] * 20
+                task.getxxslice(mosek.soltype.bas,0,20,torque) # storing just the torques
+                #torque[:]=xx[:]
+                #print('yay')
+            '''                    
+            elif (solsta == mosek.solsta.dual_infeas_cer or solsta == mosek.solsta.prim_infeas_cer):
+                print("Primal or dual infeasibility certificate found.\n")
+            elif solsta == mosek.solsta.unknown:
+                print("Unknown solution status")
+            else:
+                print("Other solution status")
+
+            '''
+            
+        env.__del__
     
-
-    
-# Homogenous transformation vector     
-
-# Calculate the jacobian transpose asociated to 
-# 4 corner points at each foot
-# We get 24 jacobians i.e, one each for x,y,z corrdinates at each point
-def get_JfootT(model,sim):
-    
-    # Dimension of foot
-    l=0.24                                  
-    w=0.08
-
-    # End point coordinates wrt foot frame - Common for both feet
-
-    f1=np.array([l/2,-w/2,0])                 #      ***f2***--f1***                ^ x axis
-    f2=np.array([l/2,w/2,0])                  #         |      |                    |
-    f3=np.array([-l/2,w/2,0])                 #         |      |                    |
-    f4=np.array([-l/2,-w/2,0])                #      ***f3***--f4**  y-axis<--------|    
-
-    ft_ends=[f1,f2,f3,f4]
-
-    # Get position of the above points wrt toe roll
-
-    # Left foot     - wrt ltr
-    posl=np.array([0, -0.05456, -0.0315])
-    eull=np.array([-60, 0, -90])
-
-    # Right foot    - wrt rtr
-    posr=np.array([0, -0.05456, -0.0315])
-    eulr=np.array([-60, 0, -90])
-    
-    ft_end_ltr=np.zeros((1,3))
-    ft_end_rtr=np.zeros((1,3))
-
-       
-    for elem in ft_ends:
-        ft_end_ltr=np.vstack((ft_end_ltr,get_pos(eull,posl,elem)))
-
-    
-    
-    for elem in ft_ends:
-        ft_end_rtr=np.vstack((ft_end_rtr,get_pos(eulr,posr,elem)))
-    
-
-    ft_ltr =np.array(ft_end_ltr[1:5,:])
-    ft_rtr =np.array(ft_end_rtr[1:5,:]) 
-
-    jac_p_temp=np.ones((3*model.nv))
-    jac_r=np.ones((3*model.nv))
-    jac_p=np.zeros((48,1))
-
-    for i in range(0,4):
-        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_ltr[i,:],12)
-        jac=np.reshape(jac_p_temp,(3,model.nv))
-        jac=np.transpose(jac)
-        jac_p=np.block([jac_p,jac])
-    
-    jac_l=np.array(jac_p[:,1:13])
-
-
-    #jac_p_temp=np.ones((3*model.nv))
-    #jac_r=np.ones((3*model.nv))
-    jac_p=np.zeros((48,1))
-
-    for i in range(0,4):
-        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_rtr[i,:],26)
-        jac=np.reshape(jac_p_temp,(3,model.nv))
-        jac=np.transpose(jac)
-        jac_p=np.block([jac_p,jac])
-    
-    jac_r=np.array(jac_p[:,1:13])
-    
-    return jac_l,jac_r            #(nvx12) and (nvx12)
+    return torque                 
 
 
 

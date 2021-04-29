@@ -1,8 +1,7 @@
 import mujoco_py as mp
-#from mujoco_py import functions 
-#from numpy cimport ndarray, float64_t
 import numpy as np
 from centroidal_dynamics import *
+from opt_mosek import *
 import mosek
 import functions as f
 
@@ -19,11 +18,33 @@ force=np.array([6,1])
 # mjtNum* dst
 dst=np.empty(2304)
 H=np.ones(48)
-while True:
-    
-    
+
+
+while True:    
     sim.step()
-            
+    #torque_t=get_torques(model,sim)
+    torque=np.zeros(20)
+    torque=f.get_torques(model,sim,torque)
+    #print(a)
+
+
+    #view.render()
+         
+'''
+
+sim.step()
+torque_t=get_torques(model,sim)
+
+#a=f.run_mosek()
+
+#for i in range(0,20):
+#    sim.data.ctrl[i]=torque_t[i]
+
+#print(a)
+      
+sim.step()
+         
+'''
 
 
 
