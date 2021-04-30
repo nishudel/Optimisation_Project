@@ -23,11 +23,11 @@ def get_putaijlist(H):
     return x_index,y_index,val
 
 
-def get_torques(dyn,torque):
+def get_torques(dyn):
     #torque=np.zeros(20)
     with mosek.Env() as env:
         with env.Task(0,0) as task:
-            task.set_Stream(mosek.streamtype.log, streamprinter)
+            #task.set_Stream(mosek.streamtype.log, streamprinter)
 
             # Decision Variables:
             numvars=51          # T-20 ; F_contact=24 ; e =6 ; t=1
@@ -118,17 +118,18 @@ def get_torques(dyn,torque):
             
             # Solve the problem
             task.optimize()
-            task.solutionsummary(mosek.streamtype.msg)
+            
+            #task.solutionsummary(mosek.streamtype.msg)
 
             # Check Status 
             solsta = task.getsolsta(mosek.soltype.bas)
             task.__del__
             if (solsta == mosek.solsta.optimal):
-                #xx = [0.] * 20
-                task.getxxslice(mosek.soltype.bas,0,20,torque) # storing just the torques
-                #torque[:]=xx[:]
+                xx = [0.] * 20
+                task.getxxslice(mosek.soltype.bas,0,20,xx) # storing just the torques
+                dyn.torque[:]=xx[:]
                 #print('yay')
-            '''                    
+                                
             elif (solsta == mosek.solsta.dual_infeas_cer or solsta == mosek.solsta.prim_infeas_cer):
                 print("Primal or dual infeasibility certificate found.\n")
             elif solsta == mosek.solsta.unknown:
@@ -136,11 +137,11 @@ def get_torques(dyn,torque):
             else:
                 print("Other solution status")
 
-            '''
+            
             
         env.__del__
     
-    return torque                 
+    return dyn                
 
 
 

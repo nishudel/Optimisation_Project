@@ -1,9 +1,8 @@
 import mujoco_py as mp
 import numpy as np
 from centroidal_dynamics import *
-from opt_mosek import *
-import mosek
-import functions as f
+import class_def as cldef
+import opt_cvxpy as optcvx
 
 mj_path, _ = mp.utils.discover_mujoco()
 xml_path ="/home/nishanth/Documents/digit_py/digit-v3/digit-v3.xml" 
@@ -22,10 +21,11 @@ H=np.ones(48)
 
 while True:    
     sim.step()
-    #torque_t=get_torques(model,sim)
-    torque=np.zeros(20)
-    torque=f.get_torques(model,sim,torque)
-    #print(a)
+    dyn=cldef.centrl_dyn()
+    dyn=get_dynamics(model,sim)
+    
+    dyn=optcvx.get_torque_cvxpy(dyn)
+    print(dyn.torque)
 
 
     #view.render()
