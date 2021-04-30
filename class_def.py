@@ -1,9 +1,7 @@
 import numpy as np
 
 class centrl_dyn:
-    def __init__(self,nu=48,trq_range=np.zeros((20,2)),H=np.zeros((6,51)),b_t=np.zeros((6,1)),torque=np.zeros(20)):
-        self.nu=nu
-        self.trq_range=trq_range
+    def __init__(self,H=np.zeros((6,51)),b_t=np.zeros((6,1)),torque=np.zeros(20)):
         self.H=self.get_sparse(H)
         self.b_t=b_t
         self.torque=torque

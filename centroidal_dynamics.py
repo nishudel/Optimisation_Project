@@ -98,9 +98,9 @@ def get_G(model,sim):
         mp.functions.mj_jac(model,sim.data,temp,jacr,body_ipos[i,:],i)
         jacp+=mi[i]*g*temp
     
-    jac_p=np.transpose(np.reshape(jacp,(3,48)))
+    jac_p=np.transpose(np.reshape(jacp,(3,model.nv)))
 
-    G=np.zeros((48,1))
+    G=np.zeros((model.nv,1))
     G[:,0]=jac_p[:,2]
    
     return G  #(nvx1)  
@@ -137,22 +137,22 @@ def get_B(model,sim):
 '''
 
 def get_B():
-    B=np.zeros((48,20))
+    B=np.zeros((54,20))
     
-    row_addr=[0,1,2,6,9,13]     # Non-zero row address for left,right legs
+    row_addr=[0,1,2,6,10,14]     # Non-zero row address for left,right legs
     
     # Legs
     j=0                         # Actuator number
     for i in row_addr:
         B[6+i][j]=1             # Left Leg  6 => Base
-        B[23+i][j+6]=1          # Right Leg 23=> Base + Left Leg 
+        B[26+i][j+6]=1          # Right Leg 26=> Base + Left Leg 
         j=j+1
 
     j=12                        # Legs make up 12 actuator
 
     # Arms
     for i in range(0,8):
-        B[40+i][j]=1            # Left arm followed by right arm 40 => Base + Both Legs
+        B[46+i][j]=1            # Left arm followed by right arm 46 => Base + Both Legs
         j=j+1
 
     return B                    # (nvx20)
@@ -241,7 +241,7 @@ def get_JfootT(model,sim):
 
     jac_p_temp=np.ones((3*model.nv))
     jac_r=np.ones((3*model.nv))
-    jac_p=np.zeros((48,1))
+    jac_p=np.zeros((model.nv,1))
 
     for i in range(0,4):
         mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_ltr[i,:],12)
@@ -254,7 +254,7 @@ def get_JfootT(model,sim):
 
     #jac_p_temp=np.ones((3*model.nv))
     #jac_r=np.ones((3*model.nv))
-    jac_p=np.zeros((48,1))
+    jac_p=np.zeros((model.nv,1))
 
     for i in range(0,4):
         mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_rtr[i,:],26)
@@ -283,9 +283,9 @@ def get_bt(model,sim,rdot_tc=np.zeros((6,1))):
 def get_lambdaTF(model,sim):
     AHinv=get_A_Hinv(model,sim)
     B=get_B()
-    ft_jac_l=np.empty((48,12))
-    ft_jac_r=np.empty((48,12))
-    ft_jac=np.empty((48,24))
+    ft_jac_l=np.empty((model.nv,12))
+    ft_jac_r=np.empty((model.nv,12))
+    ft_jac=np.empty((model.nv,24))
 
     ft_jac_l,ft_jac_r=get_JfootT(model,sim)
     ft_jac=np.block([ft_jac_l,ft_jac_r])
@@ -298,17 +298,6 @@ def get_lambdaTF(model,sim):
 
 
 def get_dynamics(model,sim):
-    ## nu
-    nu=model.nu
-
-    ## Torque  limits
-    gear=np.zeros((model.nu,2))
-    gear[:,0]=model.actuator_gear[:,0]
-    gear[:,1]=gear[:,0]
-    ctrl_range=np.zeros((model.nu,2))
-    ctrl_range=model.actuator_ctrlrange
-    trq_range=np.multiply(gear,ctrl_range)
-
     ## Dynamics: [ lambda_T lambda_Foot ones zeros]  6x(20 24 6 1)
     lambda_T,lambda_F=get_lambdaTF(model,sim)
     H=np.block([lambda_T, lambda_F, np.eye(6) ,np.zeros((6,1))])
@@ -316,7 +305,7 @@ def get_dynamics(model,sim):
     ## b_t
     b_t=get_bt(model,sim)
 
-    dyn_data=cldef.centrl_dyn(nu,trq_range,H,b_t)
+    dyn_data=cldef.centrl_dyn(H,b_t)
 
     return dyn_data
 
