@@ -103,28 +103,38 @@ b_t.value=np.zeros((6))
 prob=cp.Problem(cp.Minimize(C@X),
                 [A_dynamics@X==b_t,A_infnorm@X <=b_infnorm,A_fr@X<=b_fr,A_trq@X<=b_trq,A_z@X <=b_z,A_fz@X<=b_fz])
 
+print("Is DPP? ", prob.is_dcp(dpp=True))
+print("Is DCP? ", prob.is_dcp(dpp=False))
+
+
 # Store torque
 torque=np.zeros(20)
+
+
 while True:    
     sim.step()
-
-    # Get the dynamics
+  
+    '''
     dyn=cldef.centrl_dyn()
     dyn=get_dynamics(model,sim)
-    
     # Change the corresponding matrices
     for i in range(0,dyn.H.x_index.shape[0]):       # Just usign the sparse form
         A_dynamics.value[dyn.H.x_index][dyn.H.y_index]=dyn.H.value[i]
-    b_t.value[0:6]=dyn.b_t[0:6,0]
-    
-    # Test
-    #torque[0:20]=X.value[0:20]
-    print(torque)
+    b_t.value[0:6]=dyn.b_t[0:6]
 
+    '''
+    # Get the dynamics
+    H1=np.empty((6,51))
+    b_t1=np.empty((6))
+    H1,b_t1=get_dynamics(model,sim)
+    # Update Constraints
+    A_dynamics.value=H1
+    b_t.value=b_t1
     # Solving the problem
-    prob.solve()
-
+    prob.solve()   
     # Extract Torque
-    torque[0:20]=X.value[0:20]
-
+    torque[0:20]=X.value[0:20]    
+    sim.data.ctrl[0:20]=torque[0:20]
     print(torque)
+    view.render()
+    

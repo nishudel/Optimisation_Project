@@ -11,13 +11,14 @@ def solvecvx(prob,dyn):
 '''
 
 
-'''
+
 import mujoco_py as mp
 import numpy as np
 from centroidal_dynamics import *
 import class_def as cldef
 import opt_cvxpy as optcvx
 import cvxpy as cp
+import support as sp
 
 ############### Setting up MuJoCo ###############
 mj_path, _ = mp.utils.discover_mujoco()
@@ -34,35 +35,22 @@ ctrl_range=np.zeros((model.nu,2))
 ctrl_range=model.actuator_ctrlrange
 trq_range=np.multiply(gear,ctrl_range)
 
+body_ipos=model.body_ipos
+mi=model.body_mass
+bodylist=np.arange(1,37)
 
-
-print(model.nv)
-print(model.nq)
 '''
-
-import numpy as np
-
-def get_B():
-    B=np.zeros((54,20))
+sim.step()
+print(model.nq)
+sim.data.qpos[2]=2
+view.render()
+'''
+while True:
+    sim.step()
+    if sim.data.time<=5:
+        sim=sp.hold_in_air(model,sim)      
+    # Target Height of COM
     
-    row_addr=[0,1,2,6,10,14]     # Non-zero row address for left,right legs
-    
-    # Legs
-    j=0                         # Actuator number
-    for i in row_addr:
-        B[6+i][j]=1             # Left Leg  6 => Base
-        B[26+i][j+6]=1          # Right Leg 26=> Base + Left Leg 
-        j=j+1
 
-    j=12                        # Legs make up 12 actuator
-
-    # Arms
-    for i in range(0,8):
-        B[46+i][j]=1            # Left arm followed by right arm 46 => Base + Both Legs
-        j=j+1
-
-    return B                    # (nvx20)
-
-B=get_B()
-
-np.savetxt("B.csv",B, delimiter=",")
+    view.render()
+    print(sim.data.qpos[2])

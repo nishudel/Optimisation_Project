@@ -84,24 +84,33 @@ def get_A_Hinv(model,sim):
 
 # Get G matrix
 def get_G(model,sim):
-    jacp=np.empty((3*model.nv))
-    temp=np.empty((3*model.nv))
-    jacr=np.empty((1))
-
+    
     body_ipos=model.body_ipos
     mi=model.body_mass
     bodylist=np.arange(1,37)
-
+   
     g=9.8
-        
+    '''        
     for i in bodylist:        
         mp.functions.mj_jac(model,sim.data,temp,jacr,body_ipos[i,:],i)
+        temp2=np.reshape(temp,(3,model.nv))
         jacp+=mi[i]*g*temp
-    
-    jac_p=np.transpose(np.reshape(jacp,(3,model.nv)))
+        print('got it!')
+    '''
+
+    jac_p_temp=np.zeros((3*model.nv))
+    jac_r=np.zeros((3*model.nv))
+    jac_p=np.zeros((model.nv,3))
+
+    for i in bodylist:
+        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,body_ipos[i,:],i)
+        jac=np.reshape(jac_p_temp,(3,model.nv))
+        jac=np.transpose(jac)
+        jac_p+=mi[i]*g*jac
+        
 
     G=np.zeros((model.nv,1))
-    G[:,0]=jac_p[:,2]
+    G[:,0]=-jac_p[:,2]              # G= -dPE/dq
    
     return G  #(nvx1)  
 
@@ -272,10 +281,12 @@ def get_JfootT(model,sim):
 def get_bt(model,sim,rdot_tc=np.zeros((6,1))):
     AHinv=get_A_Hinv(model,sim)
     G=get_G(model,sim)
+    
     f_hol=get_fhol(model,sim)
     bt=rdot_tc+AHinv@(G-f_hol)
-
-    return bt       #(6x1)
+    b_t=np.zeros((6))
+    b_t[0:6]=bt[0:6,0]
+    return b_t       #(6)
 
 
 # Calculate cross-coupling inverse operational-space (task-space) inertia matrix
@@ -299,15 +310,24 @@ def get_lambdaTF(model,sim):
 
 def get_dynamics(model,sim):
     ## Dynamics: [ lambda_T lambda_Foot ones zeros]  6x(20 24 6 1)
+    lambda_T=np.empty((6,20))
+    lambda_F=np.empty((6,24))
+    H=np.empty((6,51))
+
     lambda_T,lambda_F=get_lambdaTF(model,sim)
     H=np.block([lambda_T, lambda_F, np.eye(6) ,np.zeros((6,1))])
 
+    
     ## b_t
+    b_t=np.empty((6))
     b_t=get_bt(model,sim)
+    
 
-    dyn_data=cldef.centrl_dyn(H,b_t)
-
-    return dyn_data
-
+    #dyn_data=cldef.centrl_dyn(H,b_t)
+    #return dyn_data
+    
+    return H,b_t
+    
+    
 
     
