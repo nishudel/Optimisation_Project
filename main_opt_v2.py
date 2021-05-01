@@ -10,6 +10,7 @@ from centroidal_dynamics import *
 import class_def as cldef
 import opt_cvxpy as optcvx
 import cvxpy as cp
+import support as sp
 
 ############### Setting up MuJoCo ###############
 mj_path, _ = mp.utils.discover_mujoco()
@@ -109,7 +110,9 @@ print("Is DCP? ", prob.is_dcp(dpp=False))
 
 # Store torque
 torque=np.zeros(20)
-
+# Store target dynamics
+target_dyn=cldef.target_dynamics()
+target_dyn.P=np.array([-0.0094,0.0000626,0.9])
 
 while True:    
     sim.step()
@@ -123,18 +126,23 @@ while True:
     b_t.value[0:6]=dyn.b_t[0:6]
 
     '''
-    # Get the dynamics
-    H1=np.empty((6,51))
-    b_t1=np.empty((6))
-    H1,b_t1=get_dynamics(model,sim)
-    # Update Constraints
-    A_dynamics.value=H1
-    b_t.value=b_t1
-    # Solving the problem
-    prob.solve()   
-    # Extract Torque
-    torque[0:20]=X.value[0:20]    
-    sim.data.ctrl[0:20]=torque[0:20]
-    print(torque)
+    if sim.data.time<=5:
+        sim=sp.hold_in_air(model,sim)
+    else:    
+        # Get the dynamics
+        H1=np.empty((6,51))
+        b_t1=np.empty((6))
+        rdot_tc=get_rdot_tc(model,sim,target_dyn)
+        H1,b_t1=get_dynamics(model,sim,rdot_tc)
+        # Update Constraints
+        A_dynamics.value=H1
+        b_t.value=b_t1
+        # Solving the problem
+        prob.solve()   
+        # Extract Torque
+        torque[0:20]=X.value[0:20]    
+        sim.data.ctrl[0:20]=torque[0:20]
+        print(torque)
+      
     view.render()
     

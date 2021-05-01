@@ -13,4 +13,15 @@ class centrl_dyn:
             self.y_index=index[:,1]
             self.value=H[index[:,0],index[:,1]]
         
-                                
+class target_dynamics:
+    def __init__(self,Kdot=np.zeros((3)),K=np.zeros((3)),kdK=np.ones((3)),Pddot=np.zeros((3)),Pdot=np.zeros((3)),P=np.zeros((3)),kdL=np.ones((3)),kpL=np.ones((3))):
+        self.Kdot=Kdot
+        self.K=K
+        self.kdK=kdK
+        self.Pddot=Pddot
+        self.Pdot=Pdot
+        self.P=P
+        self.kdL=kdL
+        self.kpL=kpL
+
+

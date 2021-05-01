@@ -14,7 +14,7 @@ def solvecvx(prob,dyn):
 
 import mujoco_py as mp
 import numpy as np
-from centroidal_dynamics import *
+#from centroidal_dynamics import *
 import class_def as cldef
 import opt_cvxpy as optcvx
 import cvxpy as cp
@@ -40,17 +40,14 @@ mi=model.body_mass
 bodylist=np.arange(1,37)
 
 '''
-sim.step()
-print(model.nq)
-sim.data.qpos[2]=2
-view.render()
-'''
 while True:
     sim.step()
-    if sim.data.time<=5:
-        sim=sp.hold_in_air(model,sim)      
+    #if sim.data.time<=5:
+    sim=sp.hold_in_air(model,sim)      
     # Target Height of COM
-    
+    p=sp.get_1XGT(model,sim)
 
     view.render()
-    print(sim.data.qpos[2])
+    print(p)
+
+'''

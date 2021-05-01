@@ -114,37 +114,6 @@ def get_G(model,sim):
    
     return G  #(nvx1)  
 
-'''
-# Mtrix that maps input torque to q
-def get_B(model,sim):
-    # Base
-    blockb=np.block([np.zeros((6,20))])
-    # Left leg
-    blockll=np.block([  [np.identity(4),            np.zeros((4,16))],
-                        [np.zeros((2,20))],
-                        [np.zeros((2,4)),               np.identity(2),         np.zeros((2,14))]])
-
-    # Right leg
-    blockrl=np.block([  [np.zeros((4,6)),               np.identity(4),      np.zeros((4,10))],
-                        [np.zeros((2,20))],
-                        [np.zeros((2,10)),              np.identity(2),         np.zeros((2,8))]])
-
-    # Arms
-    sub1=np.zeros((8,12))
-    sub2=np.identity(8)
-    blocka=np.block([sub1,sub2])
-    
-    B=np.block([        [blockb],
-                        [blockll],
-                        [blockrl],
-                        [blocka]    ])
-
-    return B        #(nvx20)
-
-
-
-'''
-
 def get_B():
     B=np.zeros((54,20))
     
@@ -308,7 +277,7 @@ def get_lambdaTF(model,sim):
 
 
 
-def get_dynamics(model,sim):
+def get_dynamics(model,sim,rdot_tc):
     ## Dynamics: [ lambda_T lambda_Foot ones zeros]  6x(20 24 6 1)
     lambda_T=np.empty((6,20))
     lambda_F=np.empty((6,24))
@@ -320,14 +289,67 @@ def get_dynamics(model,sim):
     
     ## b_t
     b_t=np.empty((6))
-    b_t=get_bt(model,sim)
+    b_t=get_bt(model,sim,rdot_tc)
     
 
     #dyn_data=cldef.centrl_dyn(H,b_t)
     #return dyn_data
-    
+
     return H,b_t
     
     
+## Used in upper level feedback control law
 
-    
+def get_CoMdata(model,sim):
+
+    #Mass of each body
+    body_mass=np.empty((model.nbody,3))
+    body_mass[:,0]=model.body_mass
+    body_mass[:,1]=model.body_mass
+    body_mass[:,2]=model.body_mass
+
+    # Position of CoM of each body
+    body_pos =sim.data.xipos
+    # Position of CoM of each body
+    body_vel =sim.data.cvel[0:model.nbody,3:6]
+
+    mi_pi=np.multiply(body_mass,body_pos)
+    mi_vi=np.multiply(body_mass,body_vel)
+
+    P_cm=np.sum(mi_pi,axis=0)
+    V_cm=np.sum(mi_vi,axis=0)
+
+    total_mass=np.sum(body_mass[:,0])
+
+    P_cm=P_cm/total_mass
+    V_cm=V_cm/total_mass
+
+    P_cm=np.transpose(P_cm)     #(3x1)
+    V_cm=np.transpose(V_cm)     #(3x1)
+
+
+    return P_cm,V_cm
+
+
+def get_CAM(model,sim):
+    Hqdot=np.zeros((model.nv))
+    mp.functions.mj_mulM(model,sim.data,Hqdot,sim.data.qvel)
+    X_1_G_T=get_1XGT(model,sim)
+    U1=get_U1(model)
+    CAM=X_1_G_T@U1@Hqdot
+
+    return CAM
+
+def get_rdot_tc(model,sim,target):
+    Kt=get_CAM(model,sim)
+    P_cm,V_cm=get_CoMdata(model,sim)    
+    K_des=target.Kdot+np.multiply(target.kdK,(target.K-Kt[0:3]))
+    total_mass=np.sum(model.body_mass)
+    L_des=total_mass*(target.Pddot+np.multiply(target.kdL,(target.Pdot-V_cm))+np.multiply(target.kpL,(target.P-P_cm)))
+    K_des=np.reshape(K_des,(3,1))
+    L_des=np.reshape(L_des,(3,1))
+    rdot_tc=np.block([  [K_des],
+                        [L_des]])
+    return rdot_tc
+
+     
