@@ -8,15 +8,17 @@ def hold_in_air(model,sim):
     for i in range(0,7,1):
         sim.data.qpos[i]=0
     # Z-height
-    sim.data.qpos[2]=0.93 # 0.93
+    sim.data.qpos[2]=0.92 # 0.93
     # Hip Pitch
     sim.data.qpos[7]=np.deg2rad(21.5)       # Left
-    sim.data.qpos[34]=np.deg2rad(-21.5)     # Right
+    sim.data.qpos[9]=np.deg2rad(7)       # Left
+    sim.data.qpos[34]=np.deg2rad(-21.5)     # Right)
+    sim.data.qpos[36]=np.deg2rad(-7)     # Right)
     # Yaw,Pitch
     sim.data.qpos[8]=0
-    sim.data.qpos[9]=0
+    #sim.data.qpos[9]=0
     sim.data.qpos[35]=0
-    sim.data.qpos[36]=0
+    #sim.data.qpos[36]=0
     # Rest of the leg
     sim.data.qpos[14:31]=np.zeros((31-14))
     sim.data.qpos[41:55]=np.zeros((55-41))

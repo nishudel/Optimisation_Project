@@ -14,7 +14,7 @@ def solvecvx(prob,dyn):
 
 import mujoco_py as mp
 import numpy as np
-#from centroidal_dynamics import *
+from centroidal_dynamics import *
 import class_def as cldef
 import opt_cvxpy as optcvx
 import cvxpy as cp
@@ -27,27 +27,6 @@ model = mp.load_model_from_path(xml_path)
 sim = mp.MjSim(model,data=None,nsubsteps=10,udd_callback=None)
 view=mp.MjViewer(sim)
 
-## Torque  limits
-gear=np.zeros((model.nu,2))
-gear[:,0]=model.actuator_gear[:,0]
-gear[:,1]=gear[:,0]
-ctrl_range=np.zeros((model.nu,2))
-ctrl_range=model.actuator_ctrlrange
-trq_range=np.multiply(gear,ctrl_range)
+p=get_P_cm_i(model,sim)
 
-body_ipos=model.body_ipos
-mi=model.body_mass
-bodylist=np.arange(1,37)
-
-'''
-while True:
-    sim.step()
-    #if sim.data.time<=5:
-    sim=sp.hold_in_air(model,sim)      
-    # Target Height of COM
-    p=sp.get_1XGT(model,sim)
-
-    view.render()
-    print(p)
-
-'''
+print(p)

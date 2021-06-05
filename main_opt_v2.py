@@ -42,7 +42,7 @@ C[0][50]=1
 
 ## Inequlity Constraints
 
-## 1) Max,Min bound on e to be t  i.e  inf-norm(e)<=t               ***A_infnorm X <=b_infnorm
+## 1) Max,Min bound on error to be t  i.e  inf-norm(e)<=t               ***A_infnorm X <=b_infnorm
 
 A_infnorm=np.block([    [np.zeros((6,44)),np.eye(6),-1*np.ones((6,1))],
                         [np.zeros((6,44)),-1*np.eye(6),-1*np.ones((6,1))]])
@@ -55,10 +55,11 @@ b_infnorm=np.zeros((12))
 #    Used a conservative bound - Restrict Cone to a Pyramid  |F_x+F_y|<F_z/(2*myu) 
             
 myu=0.7                                         ######Friction Coefficient #######
-
+'''
+########## Modified cfriction cone to pyramid
 # 8 for upper and 8 for lower bound type constraint 
-block1=np.array([1, 1, -1/(2*myu)])
-block2=np.array([-1, -1, -1/(2*myu)])
+block1=np.array([1, 1, -(np.sqrt(2)*myu)])
+block2=np.array([-1, -1,-(np.sqrt(2)*myu)])
 A_fr=np.zeros((16,51))
 
 for i in range(0,8):
@@ -69,13 +70,50 @@ for i in range(0,8):
     A_fr[i+8][colm_addr[0]:colm_addr[2]+1]=block2
                 
 b_fr=np.zeros((16))
+'''
+
+########## Fx
+########## Modified cfriction cone to pyramid
+# 8 for upper and 8 for lower bound type constraint 
+block1=np.array([1, 0, -(myu/np.sqrt(2))])
+block2=np.array([-1, 0,-(myu/np.sqrt(2))])
+A_frx=np.zeros((16,51))
+
+for i in range(0,8):
+    colm_addr=np.arange(20+3*(i),20+3*(i+1),1)    # Non-empty columns   
+    # Fr_upper_bnd
+    A_frx[i][colm_addr[0]:colm_addr[2]+1]=block1
+    # Fr_lower_bnd
+    A_frx[i+8][colm_addr[0]:colm_addr[2]+1]=block2
+                
+b_frx=np.zeros((16))
+########## Fy
+########## Modified cfriction cone to pyramid
+# 8 for upper and 8 for lower bound type constraint 
+block1=np.array([0, 1, -(myu/np.sqrt(2))])
+block2=np.array([0, -1,-(myu/np.sqrt(2))])
+A_fry=np.zeros((16,51))
+
+for i in range(0,8):
+    colm_addr=np.arange(20+3*(i),20+3*(i+1),1)    # Non-empty columns   
+    # Fr_upper_bnd
+    A_fry[i][colm_addr[0]:colm_addr[2]+1]=block1
+    # Fr_lower_bnd
+    A_fry[i+8][colm_addr[0]:colm_addr[2]+1]=block2
+                
+b_fry=np.zeros((16))
+
+
 
 ## 3) Torque limits                                                  ***A_trqX<=b_trq
 A_trq=np.zeros((40,51))
-A_trq[0:20,0:20]=np.eye(20)                     # Max limit    A_trq[20:40,0:20]=-1*np.eye(20)                 # Min limit
+A_trq[0:20,0:20]=np.eye(20)                     # Max limit
+A_trq[20:40,0:20]=-1*np.eye(20)                 # Min limit
+
 b_trq=np.zeros((40))
-b_trq[0:20]=trq_range[0:20,0]               # Max limit
-b_trq[20:40]=trq_range[0:20,1]              # Min limit
+b_trq[0:20]=trq_range[0:20,1]                   # Max limit
+b_trq[20:40]=-trq_range[0:20,0]                 # Min limit
+
 
 ## 4) Constraint on Z - the upper bound on infinity norm             ***A_Z X <=b_z
 
@@ -102,7 +140,7 @@ b_t.value=np.zeros((6))
 
 
 prob=cp.Problem(cp.Minimize(C@X),
-                [A_dynamics@X==b_t,A_infnorm@X <=b_infnorm,A_fr@X<=b_fr,A_trq@X<=b_trq,A_z@X <=b_z,A_fz@X<=b_fz])
+                [A_dynamics@X==b_t,A_infnorm@X <=b_infnorm,A_frx@X<=b_frx,A_fry@X<=b_fry,A_trq@X<=b_trq,A_z@X <=b_z,A_fz@X<=b_fz])
 
 print("Is DPP? ", prob.is_dcp(dpp=True))
 print("Is DCP? ", prob.is_dcp(dpp=False))
@@ -112,29 +150,35 @@ print("Is DCP? ", prob.is_dcp(dpp=False))
 torque=np.zeros(20)
 # Store target dynamics
 target_dyn=cldef.target_dynamics()
-target_dyn.P=np.array([-0.0094,0.0000626,0.9])
+target_dyn.P=np.array([0,0,0.85])
+
 
 while True:    
     sim.step()
   
-    '''
-    dyn=cldef.centrl_dyn()
-    dyn=get_dynamics(model,sim)
-    # Change the corresponding matrices
-    for i in range(0,dyn.H.x_index.shape[0]):       # Just usign the sparse form
-        A_dynamics.value[dyn.H.x_index][dyn.H.y_index]=dyn.H.value[i]
-    b_t.value[0:6]=dyn.b_t[0:6]
+ 
+    #dyn=cldef.centrl_dyn()
+    #dyn=get_dynamics(model,sim)
+    ## Change the corresponding matrices
+    #for i in range(0,dyn.H.x_index.shape[0]):       # Just usign the sparse form
+    #    A_dynamics.value[dyn.H.x_index][dyn.H.y_index]=dyn.H.value[i]
+    #b_t.value[0:6]=dyn.b_t[0:6]
 
-    '''
-    if sim.data.time<=5:
+
+    if sim.data.time<=15:
         sim=sp.hold_in_air(model,sim)
-    else:    
+        print(sim.data.qpos[2],sim.data.time)
+    #else:
+    #    print(sim.data.qpos[2],sim.data.time)    
+       
+    elif sim.data.time>15:    
         # Get the dynamics
         H1=np.empty((6,51))
         b_t1=np.empty((6))
         rdot_tc=get_rdot_tc(model,sim,target_dyn)
         H1,b_t1=get_dynamics(model,sim,rdot_tc)
         # Update Constraints
+        #print(H1[0:6,0:20] )
         A_dynamics.value=H1
         b_t.value=b_t1
         # Solving the problem
@@ -142,7 +186,7 @@ while True:
         # Extract Torque
         torque[0:20]=X.value[0:20]    
         sim.data.ctrl[0:20]=torque[0:20]
-        print(torque)
-      
-    view.render()
+        #print(X.value[0:20])
     
+    view.render()
+  

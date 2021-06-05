@@ -11,6 +11,41 @@ def skew(x):
 
 # Calculate CMM
 
+# Get the position of COM of Digit wrt each body frame
+def get_i_P_G(model,sim):
+    # Store P_CoM of digit wrt ground
+    p_cm=np.empty((3,1))
+
+    # Mass of each body
+    body_mass=np.empty((38,3))
+    body_mass[:,0]=model.body_mass
+    body_mass[:,1]=model.body_mass
+    body_mass[:,2]=model.body_mass
+
+    # Position of CoM of each body
+    body_pos =sim.data.xipos
+
+    # Multiply it with the posiiton
+    mi_pi=np.multiply(body_mass,body_pos)
+
+    # Calculate the position of COM wrt ground
+    p_cm=np.sum(mi_pi,axis=0)
+    total_mass=np.sum(body_mass[:,0])
+    p_cm=p_cm/total_mass    
+    p_x=p_cm[0]*np.ones((38,1))
+    p_y=p_cm[1]*np.ones((38,1))
+    p_z=p_cm[2]*np.ones((38,1))
+    
+    P_cm=np.block([p_x,p_y,p_z])
+    P_cm=P_cm.reshape((38,3))
+    
+    P_cm_i=P_cm-body_pos
+
+    return P_cm_i
+
+
+
+
 # Transpose of Motion Transformation Matrix from base frame to CoM frame
 def get_1XGT(model,sim):
     ## Step 1: Calculate Posiiton of base frame wrt CoM frame of Digit
@@ -38,49 +73,51 @@ def get_1XGT(model,sim):
     # P_base wrt ground
     P_base=sim.data.sensordata[0:3]
 
-    # p_base_CoM
-    P_b_cm=P_base-P_cm
+    # p_CoM_base
+    P_cm_b=P_cm-P_base
 
     ##  Step 2: Obtain the rotation matrix : Transpose of Base frame wrt ground
     
     # Orientation of base wrt ground
     q_base = sim.data.sensordata[3:7]
 
-    # Rotation Matrix
-    R_1_0=np.empty(9)
-    mp.functions.mju_quat2Mat(R_1_0,q_base)
-    R_1_0=np.transpose(R_1_0.reshape((3,3)))
+    # Rotation Matrix- Rotate world frame by this to get to base frame 0R1
+    R_0_1=np.empty(9)
+    mp.functions.mju_quat2Mat(R_0_1,q_base)
+    R_0_1=R_0_1.reshape((3,3))
 
     ## Step 3: Obtain 1XGT
 
-    X_1_G_T=np.block([      [R_1_0              ,np.matmul(R_1_0,np.transpose(skew(P_b_cm)))],
-                            [np.zeros((3,3))    ,R_1_0 ]])
+    X_1_G_T=np.block([      [R_0_1              ,np.matmul(R_0_1,np.transpose(skew(P_cm_b)))],
+                            [np.zeros((3,3))    ,R_0_1]])
 
     return X_1_G_T      #(6x6)
 
 # Isolating Base frame quantities
 def get_U1(model):
-    U1= np.block([np.ones((6,6)) ,np.zeros((6,model.nv-6))])
+    U1= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))])
     return U1       #(6xnv)   
-
-
-# Get Adot*qdot matirx
-def get_Adot_qdot(model,sim):
-    X_1_G_T=get_1XGT(model,sim)
-    U1=get_U1(model)
-    C=sim.data.qfrc_bias
-
-    dAdq=X_1_G_T@U1@C
-
-    return dAdq
 
 # Get A*(H_inverse)    
 def get_A_Hinv(model,sim):
     X_1_G_T=get_1XGT(model,sim)
     U1=get_U1(model)
     AHinv=X_1_G_T@U1
-
+    
     return AHinv        #(6xnv)
+
+
+############# Incorrect ############# 
+# Get Adot*qdot matirx
+def get_Adot_qdot(model,sim):
+    X_1_G_T=get_1XGT(model,sim)
+    U1=get_U1(model)
+    CqG=sim.data.qfrc_bias
+
+    dAdq=X_1_G_T@U1@CqG    # This is actually X_1_G_T@U1@(Cq+G)
+
+    return dAdq
+############# Incorrect #############
 
 # Get G matrix
 def get_G(model,sim):
@@ -90,13 +127,6 @@ def get_G(model,sim):
     bodylist=np.arange(1,37)
    
     g=9.8
-    '''        
-    for i in bodylist:        
-        mp.functions.mj_jac(model,sim.data,temp,jacr,body_ipos[i,:],i)
-        temp2=np.reshape(temp,(3,model.nv))
-        jacp+=mi[i]*g*temp
-        print('got it!')
-    '''
 
     jac_p_temp=np.zeros((3*model.nv))
     jac_r=np.zeros((3*model.nv))
@@ -114,6 +144,28 @@ def get_G(model,sim):
    
     return G  #(nvx1)  
 
+# Vector of holonomic constraint forces (excluding ground contact)
+# These are due to the equality constraints imposed 
+# at the end of rods 
+def get_fhol(model,sim):
+    qfrc_force=sim.data.qfrc_constraint
+    f_hol=np.zeros((model.nv,1))
+    f_hol[:,0]=qfrc_force
+    return f_hol    #(nvx1)
+
+# Calculate the b_t term of the equations
+# Take note of the default value of target dynamics
+def get_bt(model,sim,rdot_tc=np.zeros((6,1))):
+    AHinv=get_A_Hinv(model,sim)
+    G=get_G(model,sim)
+    
+    f_hol=get_fhol(model,sim)
+    bt=rdot_tc+AHinv@(G-f_hol)
+    b_t=np.zeros((6))
+    b_t[0:6]=bt[0:6,0]
+    return b_t       #(6)
+
+# Troque Mapping
 def get_B():
     B=np.zeros((54,20))
     
@@ -123,28 +175,24 @@ def get_B():
     j=0                         # Actuator number
     for i in row_addr:
         B[6+i][j]=1             # Left Leg  6 => Base
-        B[26+i][j+6]=1          # Right Leg 26=> Base + Left Leg 
+        B[30+i][j+10]=1          # Right Leg 26=> Base + Left Leg 
         j=j+1
 
-    j=12                        # Legs make up 12 actuator
+                          
 
-    # Arms
-    for i in range(0,8):
-        B[46+i][j]=1            # Left arm followed by right arm 46 => Base + Both Legs
+    # Left Arms
+    j=6  
+    for i in range(0,4):
+        B[26+i][j]=1            # Left arm followed by right arm 46 => Base + Both Legs
+        j=j+1
+
+    # Right Arms
+    j=16
+    for i in range(0,4):
+        B[50+i][j]=1            # Left arm followed by right arm 46 => Base + Both Legs
         j=j+1
 
     return B                    # (nvx20)
-
-
-
-# Vector of holonomic constraint forces (excluding ground contact)
-# These are due to the equality constraints imposed 
-# at the end of rods 
-def get_fhol(model,sim):
-    qfrc_force=sim.data.qfrc_constraint
-    f_hol=np.zeros((model.nv,1))
-    f_hol[:,0]=qfrc_force
-    return f_hol    #(nvx1)
 
 
 # To get the position of a point (vec- known wrt say a "frame")
@@ -222,7 +270,7 @@ def get_JfootT(model,sim):
     jac_p=np.zeros((model.nv,1))
 
     for i in range(0,4):
-        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_ltr[i,:],12)
+        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_ltr[i,:],15)
         jac=np.reshape(jac_p_temp,(3,model.nv))
         jac=np.transpose(jac)
         jac_p=np.block([jac_p,jac])
@@ -235,7 +283,7 @@ def get_JfootT(model,sim):
     jac_p=np.zeros((model.nv,1))
 
     for i in range(0,4):
-        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_rtr[i,:],26)
+        mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_rtr[i,:],33)
         jac=np.reshape(jac_p_temp,(3,model.nv))
         jac=np.transpose(jac)
         jac_p=np.block([jac_p,jac])
@@ -245,17 +293,7 @@ def get_JfootT(model,sim):
     return jac_l,jac_r            #(nvx12) and (nvx12)
 
     
-# Calculate the b_t term of the equations
-# Take note of the default value of target dynamics
-def get_bt(model,sim,rdot_tc=np.zeros((6,1))):
-    AHinv=get_A_Hinv(model,sim)
-    G=get_G(model,sim)
-    
-    f_hol=get_fhol(model,sim)
-    bt=rdot_tc+AHinv@(G-f_hol)
-    b_t=np.zeros((6))
-    b_t[0:6]=bt[0:6,0]
-    return b_t       #(6)
+
 
 
 # Calculate cross-coupling inverse operational-space (task-space) inertia matrix
@@ -271,6 +309,7 @@ def get_lambdaTF(model,sim):
     ft_jac=np.block([ft_jac_l,ft_jac_r])
     
     lambda_T=AHinv@B                       # For torque
+    #print(lambda_T)
     lambda_F=AHinv@ft_jac                  # For Foot contact
 
     return lambda_T,lambda_F   #(6x20) and (6x24)                            
@@ -285,7 +324,6 @@ def get_dynamics(model,sim,rdot_tc):
 
     lambda_T,lambda_F=get_lambdaTF(model,sim)
     H=np.block([lambda_T, lambda_F, np.eye(6) ,np.zeros((6,1))])
-
     
     ## b_t
     b_t=np.empty((6))
