@@ -11,6 +11,9 @@ def skew(x):
 
 # Calculate CMM
 
+# Body id and name just for reference
+
+
 # Get the position of COM of Digit wrt each body frame
 def get_i_P_G(model,sim):
     # Store P_CoM of digit wrt ground
@@ -47,36 +50,11 @@ def get_i_P_G(model,sim):
 
 
 
+
 # Transpose of Motion Transformation Matrix from base frame to CoM frame
 def get_1XGT(model,sim):
     ## Step 1: Calculate Posiiton of base frame wrt CoM frame of Digit
-    
-    # Store P_CoM of digit wrt ground
-    P_cm=np.empty((3,1))
-
-    #Mass of each body
-    body_mass=np.empty((38,3))
-    body_mass[:,0]=model.body_mass
-    body_mass[:,1]=model.body_mass
-    body_mass[:,2]=model.body_mass
-    
-    # Position of CoM of each body
-    body_pos =sim.data.xipos
-
-    mi_pi=np.multiply(body_mass,body_pos)
-
-    P_cm=np.sum(mi_pi,axis=0)
-
-    total_mass=np.sum(body_mass[:,0])
-
-    P_cm=P_cm/total_mass
-
-    # P_base wrt ground
-    P_base=sim.data.sensordata[0:3]
-
-    # p_CoM_base
-    P_cm_b=P_cm-P_base
-
+ 
     P_cm_i=get_i_P_G(model,sim)
     P_cm_b=P_cm_i[0]
     ##  Step 2: Obtain the rotation matrix : Transpose of Base frame wrt ground
@@ -100,6 +78,12 @@ def get_1XGT(model,sim):
 def get_U1(model):
     U1= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))])
     return U1       #(6xnv)   
+
+# Isolating frame i quantities
+def get_U1(model,i):
+    Ui=np.zeros((6,model.nv))
+    Ui[2][5+i]=1
+    return Ui       #(6xnv)  
 
 # Get A*(H_inverse)    
 def get_A_Hinv(model,sim):
@@ -180,8 +164,6 @@ def get_B():
         B[6+i][j]=1             # Left Leg  6 => Base
         B[30+i][j+10]=1          # Right Leg 26=> Base + Left Leg 
         j=j+1
-
-                          
 
     # Left Arms
     j=6  
