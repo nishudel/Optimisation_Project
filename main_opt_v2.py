@@ -165,13 +165,13 @@ while True:
     #b_t.value[0:6]=dyn.b_t[0:6]
 
 
-    if sim.data.time<=15:
+    if sim.data.time<=5:
         sim=sp.hold_in_air(model,sim)
         print(sim.data.qpos[2],sim.data.time)
     #else:
     #    print(sim.data.qpos[2],sim.data.time)    
        
-    elif sim.data.time>15:    
+    elif sim.data.time>5:    
         # Get the dynamics
         H1=np.empty((6,51))
         b_t1=np.empty((6))

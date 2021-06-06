@@ -39,6 +39,7 @@ def get_i_P_G(model,sim):
     P_cm=np.block([p_x,p_y,p_z])
     P_cm=P_cm.reshape((38,3))
     
+    # Position of Center of mass wrt body i
     P_cm_i=P_cm-body_pos
 
     return P_cm_i
@@ -76,6 +77,8 @@ def get_1XGT(model,sim):
     # p_CoM_base
     P_cm_b=P_cm-P_base
 
+    P_cm_i=get_i_P_G(model,sim)
+    P_cm_b=P_cm_i[0]
     ##  Step 2: Obtain the rotation matrix : Transpose of Base frame wrt ground
     
     # Orientation of base wrt ground
