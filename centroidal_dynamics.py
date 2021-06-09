@@ -14,8 +14,11 @@ def skew(x):
 # Body id and name just for reference
 
 
-# Get the position of COM of Digit wrt each body frame
-def get_i_P_G(model,sim):
+# Get the position of COM of Digit wrt ith body frame
+# Note: This patch can be modified to return a vector 
+#       that contains P_CoM wrt all body frames.I have 
+#       used ith frame just to make things understandable
+def get_i_P_G(model,sim,i):
     # Store P_CoM of digit wrt ground
     p_cm=np.empty((3,1))
 
@@ -45,7 +48,7 @@ def get_i_P_G(model,sim):
     # Position of Center of mass wrt body i
     P_cm_i=P_cm-body_pos
 
-    return P_cm_i
+    return P_cm_i[i,0:3]
 
 
 # Transpose of Motion Transformation Matrix from base frame to CoM frame
@@ -73,8 +76,15 @@ def get_1XGT(model,sim):
 
 # Transpose of Motion Transformation Matrix from base frame i to CoM frame
 def get_iXGT(model,sim,i):
+    i_P_g=get_i_P_G(model,sim,i)
+        
+    O_R_i=sim.data.xmat[i,0:9]
+    O_R_i=np.reshape(O_R_i,(3,3))
 
-
+    i_X_G_T=np.block([      [O_R_i              ,np.matmul(O_R_i,np.transpose(skew(i_P_g)))],
+                            [np.zeros((3,3))    ,O_R_i]])
+   
+    return i_X_G_T
 
 
 # Isolating Base frame quantities
