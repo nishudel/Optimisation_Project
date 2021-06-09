@@ -48,17 +48,13 @@ def get_i_P_G(model,sim):
     return P_cm_i
 
 
-
-
-
 # Transpose of Motion Transformation Matrix from base frame to CoM frame
 def get_1XGT(model,sim):
-    ## Step 1: Calculate Posiiton of base frame wrt CoM frame of Digit
- 
+    ## Step 1: Calculate Posiiton of base frame wrt CoM frame of Digit 
     P_cm_i=get_i_P_G(model,sim)
     P_cm_b=P_cm_i[0]
+
     ##  Step 2: Obtain the rotation matrix : Transpose of Base frame wrt ground
-    
     # Orientation of base wrt ground
     q_base = sim.data.sensordata[3:7]
 
@@ -74,13 +70,20 @@ def get_1XGT(model,sim):
 
     return X_1_G_T      #(6x6)
 
+
+# Transpose of Motion Transformation Matrix from base frame i to CoM frame
+def get_iXGT(model,sim,i):
+
+
+
+
 # Isolating Base frame quantities
 def get_U1(model):
     U1= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))])
     return U1       #(6xnv)   
 
 # Isolating frame i quantities
-def get_U1(model,i):
+def get_Ui(model,i):
     Ui=np.zeros((6,model.nv))
     Ui[2][5+i]=1
     return Ui       #(6xnv)  
