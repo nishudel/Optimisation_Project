@@ -25,8 +25,10 @@ mj_path, _ = mp.utils.discover_mujoco()
 xml_path ="/home/nishanth/Documents/digit_py/digit-v3/digit-v3.xml" 
 model = mp.load_model_from_path(xml_path)
 sim = mp.MjSim(model,data=None,nsubsteps=10,udd_callback=None)
-view=mp.MjViewer(sim)
+#view=mp.MjViewer(sim)
 
-p=get_i_P_G(model,sim,3)
+p=model.body_dofnum
 
-print(p)
+print(p[2])
+
+print(np.shape(p))

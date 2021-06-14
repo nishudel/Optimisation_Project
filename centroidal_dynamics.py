@@ -11,9 +11,6 @@ def skew(x):
 
 # Calculate CMM
 
-# Body id and name just for reference
-
-
 # Get the position of COM of Digit wrt ith body frame
 # Note: This patch can be modified to return a vector 
 #       that contains P_CoM wrt all body frames.I have 
@@ -92,10 +89,23 @@ def get_U1(model):
     U1= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))])
     return U1       #(6xnv)   
 
-# Isolating frame i quantities
+# Isolating quantities of body i 
 def get_Ui(model,i):
     Ui=np.zeros((6,model.nv))
-    Ui[2][5+i]=1
+    # NOTE : Body id is counted from 0 with 0 as the ground, which is 
+    # not modelled in our dynamic equations, hence "i+1" indicates the 
+    # correct joint 
+
+    # If the body is not attached to the previous body by revolute joint
+    if model.body_dofnum[i]==1:
+        Ui[2][5+i+1]=1
+    # If they are ball joints
+    elif model.body_dofnum[i]==3:
+        Ui[0:3,i+1:i+1+3]=np.identity((3,3))
+    # If its the torso i.e, the base 
+    #else:
+    #    Ui[0:6,0:6]=np.identity((6,6))
+
     return Ui       #(6xnv)  
 
 # Get A*(H_inverse)    
