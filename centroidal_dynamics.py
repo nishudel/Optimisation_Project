@@ -71,13 +71,14 @@ def get_1XGT(model,sim):
     return X_1_G_T      #(6x6)
 
 
-# Transpose of Motion Transformation Matrix from base frame i to CoM frame
+# Transpose of Motion Transformation Matrix from frame i to CoM frame
 def get_iXGT(model,sim,i):
-    i_P_g=get_i_P_G(model,sim,i)
-        
+    # RElative position of CoM 
+    i_P_g=get_i_P_G(model,sim,i)        
+    # Relative orientation
     O_R_i=sim.data.xmat[i,0:9]
     O_R_i=np.reshape(O_R_i,(3,3))
-
+    # Full motion transformation matrix
     i_X_G_T=np.block([      [O_R_i              ,np.matmul(O_R_i,np.transpose(skew(i_P_g)))],
                             [np.zeros((3,3))    ,O_R_i]])
    
@@ -110,10 +111,18 @@ def get_Ui(model,i):
 
 # Get A*(H_inverse)    
 def get_A_Hinv(model,sim):
+
+    # Base frame(torso): body id =1
     X_1_G_T=get_1XGT(model,sim)
     U1=get_U1(model)
     AHinv=X_1_G_T@U1
-    
+
+    # Rest of the frames(bodies) of robot: body id= 2 to 37
+    for i in range(2,38):
+        i_X_G_T=get_iXGT(model,sim,i)
+        Ui=get_Ui(model,i)
+        AHinv+=i_X_G_T@Ui
+
     return AHinv        #(6xnv)
 
 
