@@ -8,7 +8,7 @@ import mujoco_py as mp
 import numpy as np
 from centroidal_dynamics import *
 import class_def as cldef
-import opt_cvxpy as optcvx
+#import opt_cvxpy as optcvx
 import cvxpy as cp
 import support as sp
 
@@ -54,9 +54,9 @@ b_infnorm=np.zeros((12))
 
 #    Used a conservative bound - Restrict Cone to a Pyramid  |F_x+F_y|<F_z/(2*myu) 
             
-myu=0.7                                         ######Friction Coefficient #######
+myu=0.5                                         ######Friction Coefficient #######
 '''
-########## Modified cfriction cone to pyramid
+########## Modified friction cone to pyramid
 # 8 for upper and 8 for lower bound type constraint 
 block1=np.array([1, 1, -(np.sqrt(2)*myu)])
 block2=np.array([-1, -1,-(np.sqrt(2)*myu)])
@@ -165,13 +165,13 @@ while True:
     #b_t.value[0:6]=dyn.b_t[0:6]
 
 
-    if sim.data.time<=5:
+    if sim.data.time<=2:
         sim=sp.hold_in_air(model,sim)
         print(sim.data.qpos[2],sim.data.time)
     #else:
     #    print(sim.data.qpos[2],sim.data.time)    
        
-    elif sim.data.time>5:    
+    elif sim.data.time>2.2:    
         # Get the dynamics
         H1=np.empty((6,51))
         b_t1=np.empty((6))
@@ -186,7 +186,7 @@ while True:
         # Extract Torque
         torque[0:20]=X.value[0:20]    
         sim.data.ctrl[0:20]=torque[0:20]
-        #print(X.value[0:20])
+        print(X.value[0:20])
     
     view.render()
   

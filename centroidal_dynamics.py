@@ -51,20 +51,21 @@ def get_i_P_G(model,sim,i):
 # Transpose of Motion Transformation Matrix from base frame to CoM frame
 def get_1XGT(model,sim):
     ## Step 1: Calculate Posiiton of base frame wrt CoM frame of Digit 
-    P_cm_i=get_i_P_G(model,sim)
-    P_cm_b=P_cm_i[0]
-
+    P_cm_b=get_i_P_G(model,sim,1)
+    
     ##  Step 2: Obtain the rotation matrix : Transpose of Base frame wrt ground
     # Orientation of base wrt ground
-    q_base = sim.data.sensordata[3:7]
+    ##q_base = sim.data.sensordata[3:7]
 
     # Rotation Matrix- Rotate world frame by this to get to base frame 0R1
-    R_0_1=np.empty(9)
-    mp.functions.mju_quat2Mat(R_0_1,q_base)
-    R_0_1=R_0_1.reshape((3,3))
+    ##R_0_1=np.empty(9)
+    ##p.functions.mju_quat2Mat(R_0_1,q_base)
+    ##R_0_1=R_0_1.reshape((3,3))
+
+    R_0_1=sim.data.body_xmat[1,0:9]
+    R_0_1=np.reshape(R_0_1,(3,3))
 
     ## Step 3: Obtain 1XGT
-
     X_1_G_T=np.block([      [R_0_1              ,np.matmul(R_0_1,np.transpose(skew(P_cm_b)))],
                             [np.zeros((3,3))    ,R_0_1]])
 
@@ -76,7 +77,7 @@ def get_iXGT(model,sim,i):
     # RElative position of CoM 
     i_P_g=get_i_P_G(model,sim,i)        
     # Relative orientation
-    O_R_i=sim.data.xmat[i,0:9]
+    O_R_i=sim.data.body_xmat[i,0:9]
     O_R_i=np.reshape(O_R_i,(3,3))
     # Full motion transformation matrix
     i_X_G_T=np.block([      [O_R_i              ,np.matmul(O_R_i,np.transpose(skew(i_P_g)))],
@@ -95,14 +96,16 @@ def get_Ui(model,i):
     Ui=np.zeros((6,model.nv))
     # NOTE : Body id is counted from 0 with 0 as the ground, which is 
     # not modelled in our dynamic equations, hence "i+1" indicates the 
-    # correct joint 
+    # correct joint below
 
     # If the body is not attached to the previous body by revolute joint
     if model.body_dofnum[i]==1:
-        Ui[2][5+i+1]=1
+        #Ui[2][5+i+1]=1
+        Ui[2][4+i]=1
     # If they are ball joints
     elif model.body_dofnum[i]==3:
-        Ui[0:3,i+1:i+1+3]=np.identity((3,3))
+        #Ui[0:3,i+1:i+1+3]=np.identity((3))
+        Ui[0:3,4+i:4+i+3]=np.identity((3))
     # If its the torso i.e, the base 
     #else:
     #    Ui[0:6,0:6]=np.identity((6,6))
@@ -116,7 +119,7 @@ def get_A_Hinv(model,sim):
     X_1_G_T=get_1XGT(model,sim)
     U1=get_U1(model)
     AHinv=X_1_G_T@U1
-
+    
     # Rest of the frames(bodies) of robot: body id= 2 to 37
     for i in range(2,38):
         i_X_G_T=get_iXGT(model,sim,i)
@@ -126,17 +129,6 @@ def get_A_Hinv(model,sim):
     return AHinv        #(6xnv)
 
 
-############# Incorrect ############# 
-# Get Adot*qdot matirx
-def get_Adot_qdot(model,sim):
-    X_1_G_T=get_1XGT(model,sim)
-    U1=get_U1(model)
-    CqG=sim.data.qfrc_bias
-
-    dAdq=X_1_G_T@U1@CqG    # This is actually X_1_G_T@U1@(Cq+G)
-
-    return dAdq
-############# Incorrect #############
 
 # Get G matrix
 def get_G(model,sim):
