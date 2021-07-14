@@ -90,7 +90,7 @@ def get_iXGT(model,sim,i):
 def get_U1(model):
     U1= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))])
     return U1       #(6xnv)   
-
+'''
 # Isolating quantities of body i 
 def get_Ui(model,i):
     Ui=np.zeros((6,model.nv))
@@ -111,6 +111,47 @@ def get_Ui(model,i):
     #    Ui[0:6,0:6]=np.identity((6,6))
 
     return Ui       #(6xnv)  
+'''
+
+# Isolating quantities of body i 
+def get_Ui(model,i):
+    Ui=np.zeros((6,model.nv))
+    # NOTE : Body id is counted from 0 with 0 as the ground
+    # Then begins the base(torso) and so on as per the definition
+    # of the xml file
+
+    if i==1:    # Base
+        Ui= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))]) 
+    elif i>=2 and i<=4:         # Lhr-Lhp
+        Ui[2][4+i]=1    
+    elif i==5:                  # LAr
+        Ui[0:3,4+i:4+i+3]=np.identity((3))        
+    elif i>=6 and i<=10:        # Lk-LtA    
+        Ui[2][6+i]=1
+    elif i==11:                 # LtAr
+        Ui[0:3,6+i:6+i+3]=np.identity((3))
+    elif i==12:                 # LtB
+        Ui[2][8+i]=1
+    elif i==13:                 # LtBr
+        Ui[0:3,8+i:8+i+3]=np.identity((3))    
+    elif i>=14 and i<=22:       # Ltp- Rhp
+        Ui[2][10+i]=1
+    elif i==23:                 # RAr
+        Ui[0:3,10+i:10+i+3]=np.identity((3))
+    elif i>=24 and i<=28:       # Rk- RtA
+        Ui[2][12+i]=1
+    elif i==29:                 # RtAr
+        Ui[0:3,12+i:12+i+3]=np.identity((3))
+    elif i==30:                 # RtB
+        Ui[2][14+i]=1
+    elif i==31:                 # RtBr
+        Ui[0:3,14+i:14+i+3]=np.identity((3))
+    elif i>=32:                 # Rtp-Re
+        Ui[2][16+i]=1
+
+    return Ui
+
+
 
 # Get A*(H_inverse)    
 def get_A_Hinv(model,sim):

@@ -8,7 +8,6 @@ import mujoco_py as mp
 import numpy as np
 from centroidal_dynamics import *
 import class_def as cldef
-#import opt_cvxpy as optcvx
 import cvxpy as cp
 import support as sp
 
