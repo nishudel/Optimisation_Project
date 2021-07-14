@@ -164,13 +164,13 @@ while True:
     #b_t.value[0:6]=dyn.b_t[0:6]
 
 
-    if sim.data.time<=5:
+    if sim.data.time<=2:
         sim=sp.hold_in_air(model,sim)
         print(sim.data.qpos[2],sim.data.time)
     #else:
     #    print(sim.data.qpos[2],sim.data.time)    
        
-    elif sim.data.time>5.2:
+    elif sim.data.time>2.2:
         # Apply some force at torso to partially negate the weight
         #sim.data.xfrc_applied[1]=np.array([0,0,47,0,0,0])
         # Get the dynamics
@@ -187,7 +187,7 @@ while True:
         # Extract Torque
         torque[0:20]=X.value[0:20]    
         sim.data.ctrl[0:20]=torque[0:20]
-        print(X.value[0:20])
+        #print(X.value[0:20])
     
     view.render()
   

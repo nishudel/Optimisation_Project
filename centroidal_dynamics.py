@@ -64,8 +64,6 @@ def get_1XGT(model,sim):
 
     R_0_1=sim.data.body_xmat[1,0:9]
     R_0_1=np.reshape(R_0_1,(3,3))
-
-    ## Step 3: Obtain 1XGT
     X_1_G_T=np.block([      [R_0_1              ,np.matmul(R_0_1,np.transpose(skew(P_cm_b)))],
                             [np.zeros((3,3))    ,R_0_1]])
 
@@ -74,7 +72,7 @@ def get_1XGT(model,sim):
 
 # Transpose of Motion Transformation Matrix from frame i to CoM frame
 def get_iXGT(model,sim,i):
-    # RElative position of CoM 
+    # Relative position of CoM 
     i_P_g=get_i_P_G(model,sim,i)        
     # Relative orientation
     O_R_i=sim.data.body_xmat[i,0:9]
@@ -186,8 +184,7 @@ def get_fhol(model,sim):
 # Take note of the default value of target dynamics
 def get_bt(model,sim,rdot_tc=np.zeros((6,1))):
     AHinv=get_A_Hinv(model,sim)
-    G=get_G(model,sim)
-    
+    G=get_G(model,sim)    
     f_hol=get_fhol(model,sim)
     bt=rdot_tc+AHinv@(G-f_hol)
     b_t=np.zeros((6))
@@ -201,22 +198,22 @@ def get_B():
     row_addr=[0,1,2,6,10,14]     # Non-zero row address for left,right legs
     
     # Legs
-    j=0                         # Actuator number
+    j=0                          # Actuator number
     for i in row_addr:
-        B[6+i][j]=1             # Left Leg  6 => Base
-        B[30+i][j+10]=1          # Right Leg 26=> Base + Left Leg 
+        B[6+i][j]=1              # Left Leg  6 => Base
+        B[30+i][j+10]=1          # Right Leg 30=> Base + Left Leg + Left arm
         j=j+1
 
-    # Left Arms
+    # Left Arm
     j=6  
     for i in range(0,4):
-        B[26+i][j]=1            # Left arm followed by right arm 46 => Base + Both Legs
+        B[26+i][j]=1             
         j=j+1
 
-    # Right Arms
+    # Right Arm
     j=16
     for i in range(0,4):
-        B[50+i][j]=1            # Left arm followed by right arm 46 => Base + Both Legs
+        B[50+i][j]=1            
         j=j+1
 
     return B                    # (nvx20)
@@ -241,7 +238,7 @@ def get_pos(eul,pos,vec):
                             [1]])
     pos_tr=pos_tr[0:3]
     pos_tr=np.transpose(pos_tr)
-
+    
     return pos_tr       #(1x3)
     
 
@@ -250,20 +247,17 @@ def get_pos(eul,pos,vec):
 
 # Calculate the jacobian transpose asociated to 
 # 4 corner points at each foot
-# We get 24 jacobians i.e, one each for x,y,z corrdinates at each point
+# We get 24 jacobians i.e, one each for x,y,z coordinates at each point
 def get_JfootT(model,sim):
-    
     # Dimension of foot
     l=0.24                                  
     w=0.08
 
     # End point coordinates wrt foot frame - Common for both feet
-
     f1=np.array([l/2,-w/2,0])                 #      ***f2***--f1***                ^ x axis
     f2=np.array([l/2,w/2,0])                  #         |      |                    |
     f3=np.array([-l/2,w/2,0])                 #         |      |                    |
     f4=np.array([-l/2,-w/2,0])                #      ***f3***--f4**  y-axis<--------|    
-
     ft_ends=[f1,f2,f3,f4]
 
     # Get position of the above points wrt toe roll
@@ -282,9 +276,7 @@ def get_JfootT(model,sim):
        
     for elem in ft_ends:
         ft_end_ltr=np.vstack((ft_end_ltr,get_pos(eull,posl,elem)))
-
-    
-    
+  
     for elem in ft_ends:
         ft_end_rtr=np.vstack((ft_end_rtr,get_pos(eulr,posr,elem)))
     
@@ -300,8 +292,8 @@ def get_JfootT(model,sim):
         mp.functions.mj_jac(model,sim.data,jac_p_temp,jac_r,ft_ltr[i,:],15)
         jac=np.reshape(jac_p_temp,(3,model.nv))
         jac=np.transpose(jac)
-        jac_p=np.block([jac_p,jac])
     
+        jac_p=np.block([jac_p,jac])
     jac_l=np.array(jac_p[:,1:13])
 
 
