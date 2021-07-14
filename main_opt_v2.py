@@ -13,7 +13,7 @@ import support as sp
 
 ############### Setting up MuJoCo ###############
 mj_path, _ = mp.utils.discover_mujoco()
-xml_path ="/home/nishanth/Documents/digit_py/digit-v3/digit-v3.xml" 
+xml_path ="model/digit-v3.xml" 
 model = mp.load_model_from_path(xml_path)
 sim = mp.MjSim(model,data=None,nsubsteps=10,udd_callback=None)
 view=mp.MjViewer(sim)
