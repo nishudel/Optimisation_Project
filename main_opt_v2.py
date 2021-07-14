@@ -164,13 +164,15 @@ while True:
     #b_t.value[0:6]=dyn.b_t[0:6]
 
 
-    if sim.data.time<=2:
+    if sim.data.time<=5:
         sim=sp.hold_in_air(model,sim)
         print(sim.data.qpos[2],sim.data.time)
     #else:
     #    print(sim.data.qpos[2],sim.data.time)    
        
-    elif sim.data.time>2.2:    
+    elif sim.data.time>5.2:
+        # Apply some force at torso to partially negate the weight
+        #sim.data.xfrc_applied[1]=np.array([0,0,47,0,0,0])
         # Get the dynamics
         H1=np.empty((6,51))
         b_t1=np.empty((6))

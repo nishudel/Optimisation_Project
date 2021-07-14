@@ -90,28 +90,6 @@ def get_iXGT(model,sim,i):
 def get_U1(model):
     U1= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))])
     return U1       #(6xnv)   
-'''
-# Isolating quantities of body i 
-def get_Ui(model,i):
-    Ui=np.zeros((6,model.nv))
-    # NOTE : Body id is counted from 0 with 0 as the ground, which is 
-    # not modelled in our dynamic equations, hence "i+1" indicates the 
-    # correct joint below
-
-    # If the body is not attached to the previous body by revolute joint
-    if model.body_dofnum[i]==1:
-        #Ui[2][5+i+1]=1
-        Ui[2][4+i]=1
-    # If they are ball joints
-    elif model.body_dofnum[i]==3:
-        #Ui[0:3,i+1:i+1+3]=np.identity((3))
-        Ui[0:3,4+i:4+i+3]=np.identity((3))
-    # If its the torso i.e, the base 
-    #else:
-    #    Ui[0:6,0:6]=np.identity((6,6))
-
-    return Ui       #(6xnv)  
-'''
 
 # Isolating quantities of body i 
 def get_Ui(model,i):
@@ -120,7 +98,7 @@ def get_Ui(model,i):
     # Then begins the base(torso) and so on as per the definition
     # of the xml file
 
-    if i==1:    # Base
+    if i==1:                    # Base
         Ui= np.block([np.eye((6)) ,np.zeros((6,model.nv-6))]) 
     elif i>=2 and i<=4:         # Lhr-Lhp
         Ui[2][4+i]=1    
@@ -150,7 +128,6 @@ def get_Ui(model,i):
         Ui[2][16+i]=1
 
     return Ui
-
 
 
 # Get A*(H_inverse)    
@@ -398,7 +375,7 @@ def get_CoMdata(model,sim):
 
     # Position of CoM of each body
     body_pos =sim.data.xipos
-    # Position of CoM of each body
+    # Velocity of CoM of each body
     body_vel =sim.data.cvel[0:model.nbody,3:6]
 
     mi_pi=np.multiply(body_mass,body_pos)
@@ -438,6 +415,8 @@ def get_rdot_tc(model,sim,target):
     L_des=np.reshape(L_des,(3,1))
     rdot_tc=np.block([  [K_des],
                         [L_des]])
+    # Just checking
+    #rdot_tc=np.zeros_like(rdot_tc)
     return rdot_tc
 
      
